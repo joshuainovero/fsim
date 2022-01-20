@@ -8,69 +8,75 @@ namespace fsim
         x = (float)col * (float)tileSize;
         y = (float)row * (float)tileSize;
 
-        color = sf::Color(0.0f, 0.0f, 0.0f, 0.0f);
-
         quad[0].position = sf::Vector2f(x, y);
         quad[1].position = sf::Vector2f(x + tileSize, y);
         quad[2].position = sf::Vector2f(x + tileSize, y + tileSize);
         quad[3].position = sf::Vector2f(x, y + tileSize);
 
-        switchColor();
+        switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+        type = NODETYPE::None;
     }
 
     Node::~Node() {}
 
-    sf::Vector2u Node::getPosition() const { return sf::Vector2u(row, col); }
-
-    bool Node::isObstruction() const { return color == sf::Color::Blue; }
+    sf::Vector2i Node::getPosition() const { return sf::Vector2i(row, col); }
 
     void Node::setStart() 
     {
-        color = sf::Color::Green;
-        switchColor();
+        switchColor(sf::Color::Green);
     }
 
     void Node::setTarget()
     {
-        color = sf::Color::Magenta;
-        switchColor();
+        switchColor(sf::Color::Magenta);
+    }
+
+    void Node::setPath()
+    {
+        switchColor(sf::Color::Yellow);
+    }
+
+    void Node::setDefaultPath()
+    {
+        switchColor(sf::Color::Blue);
+        type = NODETYPE::DefaultPath;
     }
 
     void Node::setObstruction()
     {
-        color = sf::Color::Blue;
-        switchColor();
+        switchColor(sf::Color::Red);
+        type = NODETYPE::Obstruction;
     }
 
     void Node::reset()
     {
-        color = sf::Color(0.0f, 0.0f, 0.0f, 0.0f);
-        switchColor();
+        switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+        type = NODETYPE::None;
     }
 
     void Node::updateNeighbors(std::vector<Node*>* nodes)
     {
         neighbors.clear();
 
-        if (row < totalRows - 1 && !(nodes[row + 1][col]->isObstruction()))
+        if (row < totalRows - 1 && (nodes[row + 1][col]->type == NODETYPE::DefaultPath))
             neighbors.push_back(nodes[row + 1][col]);
         
-        if (row > 0 && !(nodes[row - 1][col]->isObstruction()))
+        if (row > 0 && (nodes[row - 1][col]->type == NODETYPE::DefaultPath))
             neighbors.push_back(nodes[row - 1][col]);
 
-        if (col < totalCols - 1 && !(nodes[row][col + 1]->isObstruction()))
+        if (col < totalCols - 1 && (nodes[row][col + 1]->type == NODETYPE::DefaultPath))
             neighbors.push_back(nodes[row][col + 1]);
 
-        if (col > 0 && !(nodes[row][col - 1]->isObstruction()))
+        if (col > 0 && (nodes[row][col - 1]->type == NODETYPE::DefaultPath))
             neighbors.push_back(nodes[row][col - 1]);
     }
 
-    void Node::switchColor()
+    void Node::switchColor(sf::Color color_)
     {
-        quad[0].color = color;
-        quad[1].color = color;
-        quad[2].color = color;
-        quad[3].color = color;
+        quad[0].color = color_;
+        quad[1].color = color_;
+        quad[2].color = color_;
+        quad[3].color = color_;
     }
 
 }

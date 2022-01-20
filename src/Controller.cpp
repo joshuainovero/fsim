@@ -4,22 +4,21 @@ namespace fsim
 {
     namespace Controller
     {
+        const std::vector<float> zoomValues { 1.0f, 0.95f, 0.90f, 0.85f, 0.80f, 0.75, 0.70, 0.65f, 0.60f, 0.55f, 0.50f, 0.45f, 0.40f, 0.35f, 0.30f };
+
+        uint32_t mouseValue = 4;
 
         bool mouseDown = false;
 
         namespace
         {
             const sf::Vector2i windowMode(1366, 768);
-
-            const std::vector<float> zoomValues { 1.0f, 0.95f, 0.90f, 0.85f, 0.80f, 0.75, 0.70, 0.65f, 0.60f, 0.55f, 0.50f };
             
             sf::Vector2f tempViewCenterPos;
 
             sf::Vector2f tempMousePosition;
 
             bool mouseDragStatus;
-
-            uint32_t mouseValue = 0;
         }
 
         void enableMouseDrag() { mouseDragStatus = true; }
@@ -96,6 +95,7 @@ namespace fsim
             mapView.setCenter(tempViewCenterPos.x - differenceX, tempViewCenterPos.y - differenceY);
             window->setView(mapView);
             autoAdjustView(mapView, window);
+            window->setView(mapView);
 
         }
         else

@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include "Node.hpp"
+#include "Controller.hpp"
 
 namespace fsim
 {
@@ -11,11 +12,16 @@ namespace fsim
         ~Map();
 
         void initVertexArray();
+
+        void setStart(Node* node);
+        void setTarget(Node* node);
                 
         // getters
         sf::Vector2u clickPosition(sf::Vector2f worldPos) const;
         uint32_t     getTotalRows() const;
         uint32_t     getTotalCols() const;
+        Node*        getStart() const;
+        Node*        getTarget() const;
         float        getTileSize() const;
 
     public:
@@ -35,5 +41,8 @@ namespace fsim
         std::string mapTexturePath;
 
         std::string mapDataPath;
+
+        Node* start;
+        Node* target;
     };
 }

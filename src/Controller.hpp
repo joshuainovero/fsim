@@ -6,21 +6,23 @@ namespace fsim
 {
     namespace Controller
     {
+        extern const std::vector<float> zoomValues;
+
+        extern uint32_t mouseValue;
+
         extern bool mouseDown;
+        
 
         namespace
         {
             extern const sf::Vector2i windowMode;
 
-            extern const std::vector<float> zoomValues;
 
             extern sf::Vector2f tempViewCenterPos;
             
             extern sf::Vector2f tempMousePosition;
             
             extern bool mouseDragStatus;
-
-            extern uint32_t mouseValue;
 
         }
 

@@ -23,8 +23,8 @@ namespace fsim
                     std::string state;
                     dataStream >> state;
                     nodes[row_i].push_back(new Node(row_i, col_i, tileSize, totalRows, totalCols));
-                    if (state == "true")
-                        nodes[row_i][col_i]->setObstruction();
+                    if (state == "1")
+                        nodes[row_i][col_i]->setDefaultPath();
                 }
             }
         dataStream.close();
@@ -41,9 +41,14 @@ namespace fsim
             targetSize.y / mapSprite.getLocalBounds().height
         );
 
-
         mapView.setSize(sf::Vector2f(1366.0f, 768.0f));
         mapView.setCenter(sf::Vector2f(1366.0f / 2.0f, 768.0f / 2.0f));
+
+        sf::Vector2f mapSize(1366.0f * fsim::Controller::zoomValues[fsim::Controller::mouseValue], 
+            768.0f * fsim::Controller::zoomValues[fsim::Controller::mouseValue]);
+
+        mapView.setSize(sf::Vector2f(mapSize.x, mapSize.y));
+        window->setView(mapView);
 
     }
 
@@ -55,16 +60,15 @@ namespace fsim
         {
             for (int col_i = 0; col_i < totalCols; ++col_i)
             {
-                if (nodes[row_i][col_i]->isObstruction())
-                    dataStream << "true" << std::endl;
+                if (nodes[row_i][col_i]->type == NODETYPE::DefaultPath)
+                    dataStream << "1" << std::endl;
                 else
-                    dataStream << "false" << std::endl;
+                    dataStream << "0" << std::endl;
                 delete nodes[row_i][col_i];
             }
         }
 
         dataStream.close();
-        delete nodes;
         
     }
 
@@ -91,6 +95,9 @@ namespace fsim
         }
     }
 
+    void Map::setStart(Node* node) { start = node; }
+    void Map::setTarget(Node* node) { target = node; }
+
     sf::Vector2u Map::clickPosition(sf::Vector2f worldPos) const
     {
         uint32_t x = worldPos.x;
@@ -102,6 +109,7 @@ namespace fsim
     
     uint32_t Map::getTotalRows() const { return totalRows; }
     uint32_t Map::getTotalCols() const { return totalCols; }
-
+    Node* Map::getStart() const { return start; }
+    Node* Map::getTarget() const { return target; }
     float Map::getTileSize() const { return tileSize; }
 }
