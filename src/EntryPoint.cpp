@@ -15,11 +15,11 @@ int main()
     videoMode.height += 1;
     sf::RenderWindow window(videoMode, "Window", sf::Style::None);
     ImGui::SFML::Init(window);
-
+    sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height - 1), videoMode.height - 1);
+    
     fsim::Map map(400, "resource/floor12160.png", "MapData/floor1", &window);
     sf::Clock deltaClock;
     static int e = 1;
-    std::cout << map.nodes[0][0]->type << std::endl;
     while (window.isOpen())
     {
 
@@ -58,7 +58,7 @@ int main()
 
         window.draw(*map.nodePositions);
 
-        ImGui::SetNextWindowSize(ImVec2(300, videoMode.height), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(ImGuiWindowSize.x, ImGuiWindowSize.y), ImGuiCond_Always);
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
         ImGui::StyleColorsDark();
 
