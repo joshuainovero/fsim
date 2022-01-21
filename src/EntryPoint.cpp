@@ -16,7 +16,7 @@ int main()
     sf::RenderWindow window(videoMode, "Window", sf::Style::None);
     ImGui::SFML::Init(window);
     sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height - 1), videoMode.height - 1);
-    
+
     fsim::Map map(400, "resource/floor12160.png", "MapData/floor1", &window);
     sf::Clock deltaClock;
     static int e = 1;
@@ -64,9 +64,9 @@ int main()
 
         // ImGui::ShowDemoWindow();
         bool* p_open = nullptr;
-        ImGui::Begin("MU Escape Fire Simulator", p_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::Begin("Debugger - Thesis", p_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
         ImGui::Text("Actions");
-        ImGui::RadioButton("Obstruct", &e, 0);  ImGui::SameLine(); 
+        ImGui::RadioButton("Place Path", &e, 0);  ImGui::SameLine(); 
         ImGui::RadioButton("Navigate", &e, 1); ImGui::SameLine();
         ImGui::RadioButton("Set Start", &e, 2);
         ImGui::RadioButton("Set Target", &e, 3);

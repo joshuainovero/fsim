@@ -35,7 +35,7 @@ namespace fsim
         mapTexture.loadFromFile(mapTexturePath);
         mapTexture.setSmooth(true);
         mapSprite.setTexture(mapTexture);
-        sf::Vector2f targetSize = window->getView().getSize();
+        const sf::Vector2f targetSize(1366.0f, 768.0f);
         mapSprite.setScale(
             targetSize.x / mapSprite.getLocalBounds().width, 
             targetSize.y / mapSprite.getLocalBounds().height
