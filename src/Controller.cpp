@@ -12,7 +12,7 @@ namespace fsim
 
         namespace
         {
-            const sf::Vector2i windowMode(1366, 768);
+            const sf::Vector2i windowMode(sf::VideoMode::getDesktopMode().width, sf::VideoMode::getDesktopMode().height);
             
             sf::Vector2f tempViewCenterPos;
 

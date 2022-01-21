@@ -1,5 +1,5 @@
-#include "../imgui/imgui.h"
-#include "../imgui/imgui-SFML.h"
+#include "../vendor/imgui/imgui.h"
+#include "../vendor/imgui/imgui-SFML.h"
 #include "Map.hpp"
 #include "Controller.hpp"
 #include "Algorithms.hpp"
@@ -16,7 +16,7 @@ int main()
     sf::RenderWindow window(videoMode, "Window", sf::Style::None);
     ImGui::SFML::Init(window);
 
-    fsim::Map map(400, "../resource/floor12160.png", "../MapData/floor1", &window);
+    fsim::Map map(400, "resource/floor12160.png", "MapData/floor1", &window);
     sf::Clock deltaClock;
     static int e = 1;
     std::cout << map.nodes[0][0]->type << std::endl;
