@@ -27,10 +27,12 @@ namespace fsim
     public:
         std::unique_ptr<sf::VertexArray> nodePositions;
         std::vector<Node*>*              nodes;
+        std::vector<Node*>               exitNodes;
 
 
         sf::Sprite mapSprite;
         sf::View   mapView;
+        sf::CircleShape point;
         
 
     private:

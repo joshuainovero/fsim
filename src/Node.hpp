@@ -15,6 +15,7 @@ namespace fsim
         void setTarget();
         void setPath();
         void setDefaultPath();
+        void setDefaultExit();
         void setObstruction();
         void reset();
 
@@ -22,8 +23,11 @@ namespace fsim
 
         //getters
         sf::Vector2i getPosition() const;
+        sf::Vector2f getWorldPos() const;
+        float getTileSize() const;
 
         void switchColor(sf::Color color_);
+        
 
     public:
         sf::VertexArray quad;
@@ -32,11 +36,13 @@ namespace fsim
 
         NODETYPE type;
 
+        bool exit;
+
     private:
         uint32_t row, col;
+        float    tileSize;
         uint32_t totalRows;
         uint32_t totalCols;
         float    x, y;
-        float    tileSize;
     };
 }

@@ -10,16 +10,15 @@ namespace fsim
 
         bool mouseDown = false;
 
-        namespace
-        {
-            const sf::Vector2i windowMode(sf::VideoMode::getDesktopMode().width, sf::VideoMode::getDesktopMode().height);
-            
-            sf::Vector2f tempViewCenterPos;
 
-            sf::Vector2f tempMousePosition;
+        const sf::Vector2i windowMode(sf::VideoMode::getDesktopMode().width, sf::VideoMode::getDesktopMode().height);
+        
+        sf::Vector2f tempViewCenterPos;
 
-            bool mouseDragStatus;
-        }
+        sf::Vector2f tempMousePosition;
+
+        bool mouseDragStatus;
+        
 
         void enableMouseDrag() { mouseDragStatus = true; }
 

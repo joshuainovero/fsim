@@ -6,7 +6,7 @@
 namespace fsim
 {
     Map::Map(uint32_t columns, const std::string& mapTexturePath_, const std::string& mapDataPath_, sf::RenderWindow* window)
-        : totalCols(columns), mapTexturePath(mapTexturePath_), mapDataPath(mapDataPath_)
+        : totalCols(columns), mapTexturePath(mapTexturePath_), mapDataPath(mapDataPath_), start(nullptr), target(nullptr)
     {
         const float boardWidth = 1366.0f;
 
@@ -16,15 +16,21 @@ namespace fsim
         nodes = new std::vector<Node*>[totalRows];
 
         std::ifstream dataStream(mapDataPath);
-            for (int row_i = 0; row_i < totalRows; ++row_i)
+            for (size_t row_i = 0; row_i < totalRows; ++row_i)
             {
-                for (int col_i = 0; col_i < totalCols; ++col_i)
+                for (size_t col_i = 0; col_i < totalCols; ++col_i)
                 {
                     std::string state;
                     dataStream >> state;
                     nodes[row_i].push_back(new Node(row_i, col_i, tileSize, totalRows, totalCols));
                     if (state == "1")
                         nodes[row_i][col_i]->setDefaultPath();
+                    else if (state == "2")
+                    {
+                        nodes[row_i][col_i]->setDefaultExit();
+                        nodes[row_i][col_i]->exit = true;
+                        exitNodes.push_back(nodes[row_i][col_i]);
+                    }
                 }
             }
         dataStream.close();
@@ -50,18 +56,24 @@ namespace fsim
         mapView.setSize(sf::Vector2f(mapSize.x, mapSize.y));
         window->setView(mapView);
 
+        point.setRadius(4.0f);
+        point.setFillColor(sf::Color::Blue);
+        point.setOrigin(point.getRadius(), point.getRadius());
+
     }
 
     Map::~Map() {
         std::cout << "destructor calling" << std::endl;
         std::ofstream dataStream(mapDataPath);
 
-        for (int row_i = 0; row_i < totalRows; ++row_i)
+        for (size_t row_i = 0; row_i < totalRows; ++row_i)
         {
-            for (int col_i = 0; col_i < totalCols; ++col_i)
+            for (size_t col_i = 0; col_i < totalCols; ++col_i)
             {
-                if (nodes[row_i][col_i]->type == NODETYPE::DefaultPath)
+                if (nodes[row_i][col_i]->type == NODETYPE::DefaultPath && !nodes[row_i][col_i]->exit)
                     dataStream << "1" << std::endl;
+                else if (nodes[row_i][col_i]->type == NODETYPE::DefaultPath && nodes[row_i][col_i]->exit)
+                    dataStream << "2" << std::endl;
                 else
                     dataStream << "0" << std::endl;
                 delete nodes[row_i][col_i];

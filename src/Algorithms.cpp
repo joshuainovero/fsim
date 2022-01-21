@@ -2,34 +2,33 @@
 #include <utility>
 #include <set>
 #include <math.h>
+#include <iostream>
 
 namespace fsim
 {
     namespace Algorithms
     {
-        namespace
-        {
-            double calc_heuristic(sf::Vector2i p1, sf::Vector2i p2)
-            {
-                return (std::abs(p1.x - p2.x) + std::abs(p1.y - p2.y));
-            }
 
-            void reconstruct_path(Node* current, Node* start_node, std::unordered_map<Node*, Node*> previous_node)
-            {
-                while (current != start_node)
-                {
-                    current->setPath();
-                    current = previous_node[current];
-                }
-            }
-        }
-        void astar(Node* start, Node* end, std::vector<Node*>* tiles, const uint32_t& totalRows, const uint32_t& totalCols)
+        double calc_heuristic(sf::Vector2i p1, sf::Vector2i p2)
         {
-            for (int i = 0; i < totalRows; ++i)
+            return (std::abs(p1.x - p2.x) + std::abs(p1.y - p2.y));
+        }
+
+        uint32_t reconstruct_path(Node* current, Node* start_node, std::unordered_map<Node*, Node*> previous_node, const bool& disp)
+        {
+            uint32_t nodeCount = 1;
+            while (current != start_node)
             {
-                for (auto node : tiles[i])
-                    node->updateNeighbors(tiles);
+                if (disp)
+                    current->setPath();
+
+                current = previous_node[current];
+                nodeCount++;
             }
+            return nodeCount;
+        }
+        uint32_t astar(Node* start, Node* end, std::vector<Node*>* tiles, const uint32_t& totalRows, const uint32_t& totalCols, const bool& disp)
+        {
 
             std::set<std::pair<std::pair<double, uint32_t>, Node*>> priority_queue;
             std::unordered_map<Node*, uint32_t> g_score;
@@ -68,8 +67,7 @@ namespace fsim
                     priority_queue_tracker.erase(it1);
                 
                 if (current == end_node){
-                    reconstruct_path(current, start_node, previous_node);
-                    return;
+                    return reconstruct_path(current, start_node, previous_node, disp);
                 }
                 
                 for (auto neighbor : current->neighbors)
@@ -91,6 +89,66 @@ namespace fsim
                 }
 
             }
+            return 0;
+        }
+
+        Node* bfsGetNearestStart(Node* selectedNode, std::vector<Node*>* tiles, const uint32_t& totalRows, const uint32_t& totalCols)
+        {
+            std::unordered_map<Node*, bool> visited;
+            std::queue<Node*> pQueue;
+            pQueue.push(selectedNode);
+            visited[selectedNode] = true;
+
+            while (!pQueue.empty())
+            {
+                Node* currentNode = pQueue.front();
+                pQueue.pop();
+
+                if (currentNode->type == NODETYPE::DefaultPath)
+                    return currentNode;
+
+                sf::Vector2i nodePosition = currentNode->getPosition();
+                int row = nodePosition.x;
+                int col = nodePosition.y;
+
+                if (row  < (int)totalRows - 1)
+                {
+                    if (!visited[tiles[row + 1][col]])
+                    {
+                        pQueue.push(tiles[row + 1][col]);
+                        visited[currentNode] = true;
+                    }
+                }
+                
+                if (row  > 0)
+                {
+                    if (!visited[tiles[row - 1][col]])
+                    {
+                        pQueue.push(tiles[row - 1][col]);
+                        visited[currentNode] = true;
+                    }
+                }
+                if (col  < (int)totalCols - 1)
+                {
+                    if (!visited[tiles[row][col + 1]])
+                    {
+                        pQueue.push(tiles[row][col + 1]);
+                        visited[currentNode] = true;
+                    }
+                }
+
+                if (col > 0)
+                {
+                    if (!visited[tiles[row][col - 1]])
+                    {
+                        pQueue.push(tiles[row][col - 1]);
+                        visited[currentNode] = true;
+                    }
+                }
+                
+            }
+
+            return nullptr;
         }
     }
 }

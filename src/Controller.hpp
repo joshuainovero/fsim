@@ -13,18 +13,16 @@ namespace fsim
         extern bool mouseDown;
         
 
-        namespace
-        {
-            extern const sf::Vector2i windowMode;
 
+        extern const sf::Vector2i windowMode;
 
-            extern sf::Vector2f tempViewCenterPos;
-            
-            extern sf::Vector2f tempMousePosition;
-            
-            extern bool mouseDragStatus;
+        extern sf::Vector2f tempViewCenterPos;
+        
+        extern sf::Vector2f tempMousePosition;
+        
+        extern bool mouseDragStatus;
 
-        }
+        
 
         void enableMouseDrag();
 

@@ -15,11 +15,14 @@ namespace fsim
 
         switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
         type = NODETYPE::None;
+        exit = false;
     }
 
     Node::~Node() {}
 
     sf::Vector2i Node::getPosition() const { return sf::Vector2i(row, col); }
+    sf::Vector2f Node::getWorldPos() const { return sf::Vector2f(x, y); }
+    float Node::getTileSize() const { return tileSize; }
 
     void Node::setStart() 
     {
@@ -38,7 +41,13 @@ namespace fsim
 
     void Node::setDefaultPath()
     {
-        switchColor(sf::Color::Blue);
+        switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+        type = NODETYPE::DefaultPath;
+    }
+
+    void Node::setDefaultExit()
+    {
+        switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
         type = NODETYPE::DefaultPath;
     }
 
@@ -52,6 +61,7 @@ namespace fsim
     {
         switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
         type = NODETYPE::None;
+        exit = false;
     }
 
     void Node::updateNeighbors(std::vector<Node*>* nodes)

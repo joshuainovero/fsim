@@ -4,17 +4,25 @@
 #include "Controller.hpp"
 #include "Algorithms.hpp"
 #include <iostream>
+#include <algorithm>
 
 static bool mouseOnImGui = false;
 
-static bool showDefaultPaths = true;
+static bool mouseDown = false;
+
+static std::vector<std::pair<fsim::Node*, uint32_t>> exitsStored;
 
 int main()
 {
     auto videoMode = sf::VideoMode::getDesktopMode();
     videoMode.height += 1;
-    sf::RenderWindow window(videoMode, "Window", sf::Style::None);
-    ImGui::SFML::Init(window);
+    sf::ContextSettings settings;
+    settings.antialiasingLevel = 1;
+    sf::RenderWindow window(videoMode, "Window", sf::Style::None, settings);
+
+    bool imGuiInit = ImGui::SFML::Init(window);
+    if (imGuiInit)
+        std::cout << "ImGui successs" << std::endl;
     sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height - 1), videoMode.height - 1);
 
     fsim::Map map(400, "resource/floor12160.png", "MapData/floor1", &window);
@@ -69,16 +77,35 @@ int main()
         ImGui::RadioButton("Place Path", &e, 0);  ImGui::SameLine(); 
         ImGui::RadioButton("Navigate", &e, 1); ImGui::SameLine();
         ImGui::RadioButton("Set Start", &e, 2);
-        ImGui::RadioButton("Set Target", &e, 3);
+        ImGui::RadioButton("Set Target", &e, 3); ImGui::SameLine();
+        ImGui::RadioButton("Place Target", &e, 4);
         if (ImGui::Button("Visualize"))
         {
-            fsim::Algorithms::astar(map.getStart(), map.getTarget(), map.nodes, map.getTotalRows(), map.getTotalCols());
+            exitsStored.clear();
+            for (size_t i = 0; i < map.getTotalRows(); ++i)
+            {
+                for (auto node : map.nodes[i])
+                    node->updateNeighbors(map.nodes);
+            }
+
+            for (auto exitNode : map.exitNodes)
+            {
+                uint32_t nodeCount = fsim::Algorithms::astar(map.getStart(), exitNode, map.nodes, map.getTotalRows(), map.getTotalCols(), false);
+                exitsStored.push_back(std::make_pair(exitNode, nodeCount));
+            }
+
+            auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
+                                return left.second < right.second;});
+            uint32_t finalCount = fsim::Algorithms::astar(map.getStart(), minExitNode.first, map.nodes, map.getTotalRows(), map.getTotalCols(), true);
             map.initVertexArray();
         }
         ImGui::End();  
 
 
         ImGui::SFML::Render(window);
+
+        if (map.getStart() != nullptr)
+            window.draw(map.point);
 
         window.display();
 
@@ -130,13 +157,35 @@ int main()
                 {
                     if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
                     {
-                        sf::Vector2u position = map.clickPosition(worldPos);
-                        if (map.nodes[position.x][position.y]->type == fsim::NODETYPE::DefaultPath){
-                            map.nodes[position.x][position.y]->setStart();
-                            map.setStart(map.nodes[position.x][position.y]);
+                        if (!mouseDown){
+                            for (size_t i = 0; i < map.getTotalRows(); ++i)
+                            {
+                                for (auto node : map.nodes[i])
+                                {
+                                    // if ((node->quad[0].color == sf::Color::Yellow || node->quad[0].color == sf::Color::Green) && !(node->exit))
+                                    //     node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                    // else if (node->quad[0].color == sf::Color::Yellow && (node->exit))
+                                        node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                }
+                            }
+                            sf::Vector2u position = map.clickPosition(worldPos);
+                            fsim::Node* selectedNode = map.nodes[position.x][position.y];
+                            fsim::Node* calculatedSelectedNode = fsim::Algorithms::bfsGetNearestStart(selectedNode, map.nodes, map.getTotalRows(), map.getTotalCols());
+                            calculatedSelectedNode->setStart();
+                            map.setStart(calculatedSelectedNode);
                             map.initVertexArray();
-                        }
+                            map.point.setPosition(sf::Vector2f(map.getStart()->getWorldPos().x + (map.getStart()->getTileSize()/2.0f), 
+                            map.getStart()->getWorldPos().y + (map.getStart()->getTileSize()/2.0f)));
+                            // if (map.nodes[position.x][position.y]->type == fsim::NODETYPE::DefaultPath){
+                            //     map.nodes[position.x][position.y]->setStart();
+                            //     map.setStart(map.nodes[position.x][position.y]);
+                            //     map.initVertexArray();
+                            // }
+                            mouseDown = true;
+                        } 
                     }
+                    else mouseDown = false;
+
                 }
 
                 else if (e ==3)
@@ -149,6 +198,18 @@ int main()
                             map.setTarget(map.nodes[position.x][position.y]);
                             map.initVertexArray();
                         }
+                    }
+                }
+                else if (e == 4)
+                {
+                    if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+                    {
+                        sf::Vector2u position = map.clickPosition(worldPos);
+                        if (map.nodes[position.x][position.y]->type == fsim::NODETYPE::DefaultPath){
+                            map.nodes[position.x][position.y]->setDefaultExit();
+                            map.nodes[position.x][position.y]->exit = true;
+                            map.initVertexArray();
+                        }  
                     }
                 }
             }
