@@ -67,9 +67,18 @@ static std::vector<std::pair<fsim::Node*, uint32_t>> exitsStored;
 
 static void displayModifyModal(const modifyPointState& state)
 {
+    std::string option;
     if (state == modifyPointState::CREATE)
-        ImGui::OpenPopup("Add Starting Point");
-    if (ImGui::BeginPopupModal("Add Starting Point", NULL, ImGuiWindowFlags_Modal))
+    {
+        option = "Add Starting Point";
+    }
+    else if (state == modifyPointState::MODIFY)
+    {
+        option = "Modify Point";
+    }
+    const char* option_cstr = option.c_str();
+    ImGui::OpenPopup(option_cstr);
+    if (ImGui::BeginPopupModal(option_cstr, NULL, ImGuiWindowFlags_Modal))
     {
         if (ImGui::Button("Close"))
         {
@@ -77,24 +86,34 @@ static void displayModifyModal(const modifyPointState& state)
             {
                 delete startingPointTemp;
                 startingPointTemp = nullptr;
-                std::cout << "Cancelled" << std::endl;
+                std::cout << "Cancelled Starting Node" << std::endl;
+            }
+            else if (modalModify == modifyPointState::MODIFY)
+            {
+                std::cout << "Cancelled Modify Node" << std::endl;
+                startingPointTemp = nullptr;
+
             }
             modalModify = modifyPointState::NONE;
             ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
             return;
         }
-        if (startingPointTemp == nullptr)
+        if (modalModify == modifyPointState::CREATE)
         {
-            startingPointTemp = new fsim::StartingPoints();
-            std::cout << "Created" << std::endl;
+            if (startingPointTemp == nullptr)
+            {
+                startingPointTemp = new fsim::StartingPoints();
+                std::cout << "Created" << std::endl;
+            }
         }
-        ImGui::InputText("Input Label", startingPointTemp->buffer, 7); ImGui::SameLine();
 
-        static ImVec4 color = ImVec4(114.0f / 255.0f, 144.0f / 255.0f, 154.0f / 255.0f, 200.0f / 255.0f);
+
+        ImGui::InputText("Input Label", startingPointTemp->buffer, 7);
+        ImGui::Separator();
+        static ImVec4 color = ImVec4(114.0f / 255.0f, 144.0f / 255.0f, 154.0f / 255.0f, 255.0f / 255.0f);
 
         IMGUI_DEMO_MARKER("Widgets/Color/ColorPicker");
-        ImGui::Text("Color picker:");
         static bool alpha = true;
         static bool alpha_bar = true;
         static bool side_preview = true;
@@ -133,14 +152,17 @@ static void displayModifyModal(const modifyPointState& state)
         if (display_mode == 3) flags |= ImGuiColorEditFlags_DisplayHSV;
         if (display_mode == 4) flags |= ImGuiColorEditFlags_DisplayHex;
 
-        ImGui::ColorPicker4("MyFUCKINGCOLOR##4", (float*)&color, flags, ref_color ? &ref_color_v.x : NULL);
+        ImGui::ColorPicker4("Color##4", (float*)&color, flags, ref_color ? &ref_color_v.x : NULL);
         
         if (ImGui::Button("Save"))
         {
+            if (modalModify == modifyPointState::CREATE)
+                startingPoints.push_back(startingPointTemp);
+
             modalModify = modifyPointState::NONE;
             std::cout << "Saved" << std::endl;
             startingPointTemp->point_rgba = color;
-            startingPoints.push_back(startingPointTemp);
+
             startingPointTemp = nullptr;
             ImGui::CloseCurrentPopup();
         }
@@ -151,7 +173,8 @@ static void displayModifyModal(const modifyPointState& state)
 int main()
 {
     auto videoMode = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow window(videoMode, "Window", sf::Style::Fullscreen);
+    videoMode.height += 1;
+    sf::RenderWindow window(videoMode, "Window", sf::Style::None);
     bool imGuiInit = ImGui::SFML::Init(window);
     if (imGuiInit)
         std::cout << "ImGui Success!" << std::endl;
@@ -175,7 +198,8 @@ int main()
             }
             else if (event.type == sf::Event::MouseWheelMoved)
             {
-                fsim::Controller::zoomEvent(event.mouseWheel.delta, map.mapView, &window);
+                if (modalModify == modifyPointState::NONE)
+                    fsim::Controller::zoomEvent(event.mouseWheel.delta, map.mapView, &window);
             }
         }
             ImGui::SFML::Update(window, deltaClock.restart());
@@ -185,6 +209,12 @@ int main()
             window.draw(map.mapSprite);
 
             window.draw(*map.nodePositions);
+
+            for (auto startNode : startingPoints)
+            {
+                if (startNode->node != nullptr)
+                    window.draw(startNode->point);
+            }
 
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
             ImGui::Begin("MU Fire Escape Simulator");
@@ -203,21 +233,35 @@ int main()
                 {
                     if (ImGui::BeginTable("split", 2))
                     {
-                        // std::string text = "Navigates";
                         ImGui::TableNextColumn(); ImGui::Checkbox("WASD Movement", &enableWASD); 
                         ImGui::TableNextColumn(); 
-                        // auto posX = (ImGui::GetCursorPosX() + ImGui::GetColumnWidth() - ImGui::CalcTextSize(text.c_str()).x 
-                        //     - ImGui::GetScrollX() - 2 * ImGui::GetStyle().ItemSpacing.x);
-                        // if(posX > ImGui::GetCursorPosX())
-                        //     ImGui::SetCursorPosX(posX);
+
                         ImGui::RadioButton("Navigate", &screenClickHandle, 0);
  
                         ImGui::EndTable();
                     }
                     ImGui::Separator();
-                    ImGui::Text("Zoom: 0"); ImGui::SameLine();
-                    ImGui::Button("+"); ImGui::SameLine();
-                    ImGui::Button("-");
+
+                    float ratio = ((float)fsim::Controller::mouseValue) / (fsim::Controller::zoomValues.size() - 1.0f);
+                    float percent = ratio * 100.0f;
+
+                    std::string zoomPercentage = "Zoom: " + std::to_string(percent) + " %%";
+                    ImGui::Text(zoomPercentage.c_str()); ImGui::SameLine();
+                    if (ImGui::Button("+"))
+                    {
+                        if (fsim::Controller::mouseValue < fsim::Controller::zoomValues.size() - 1)
+                        {
+                            fsim::Controller::zoomEvent(1, map.mapView, &window);
+                        }
+                    }
+                     ImGui::SameLine();
+                    if (ImGui::Button("-"))
+                    {
+                        if (fsim::Controller::mouseValue > 0)
+                        {
+                            fsim::Controller::zoomEvent(-1, map.mapView, &window);
+                        }
+                    }
                 }
                 if (ImGui::CollapsingHeader("Starting Points"))
                 {
@@ -238,11 +282,30 @@ int main()
                                 ImGui::Text(startingPoints[row]->buffer); ImGui::SameLine();
                                 if(ImGui::Button(("Modify##" + std::to_string(row)).c_str()))
                                 {
+                                    startingPointTemp = startingPoints[row];
                                     modalModify = modifyPointState::MODIFY;
                                 } ImGui::SameLine();
-                                ImGui::Button("Locate"); ImGui::SameLine();
+                                if(ImGui::Button(("Locate##" + std::to_string(row)).c_str()))
+                                {
+                                    if (startingPoints[row]->node != nullptr)
+                                    {
+                                        map.mapView.setCenter(sf::Vector2f(startingPoints[row]->node->getWorldPos().x,
+                                        startingPoints[row]->node->getWorldPos().y));
+                                        fsim::Controller::mouseValue = 12;
+                                        map.mapView.setSize(sf::Vector2f(1366.0f * fsim::Controller::zoomValues[fsim::Controller::mouseValue], 
+                                        768.0f * fsim::Controller::zoomValues[fsim::Controller::mouseValue]));
+                                        window.setView(map.mapView);
+                                    }
+                                }
+                                ImGui::SameLine();
                                 if (ImGui::Button(("Move##" + std::to_string(row)).c_str()))
                                 {
+                                    for (size_t i = 0; i < map.getTotalRows(); ++i)
+                                    {
+                                        for (auto node : map.nodes[i])
+                                            node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                    }
+                                    map.initVertexArray();
                                     sf::Color color(sf::Color(
                                         startingPoints[row]->point_rgba.x * 255.0f,
                                         startingPoints[row]->point_rgba.y * 255.0f,
@@ -256,7 +319,21 @@ int main()
                                     enableWASD = true;
                                 }
                                 ImGui::SameLine();
-                                ImGui::Button("Delete"); ImGui::SameLine();
+                                if(ImGui::Button(("Delete##" + std::to_string(row)).c_str()))
+                                {
+                                    for (size_t i = 0; i < map.getTotalRows(); ++i)
+                                    {
+                                        for (auto node : map.nodes[i])
+                                            node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                    }
+                                    map.initVertexArray();
+                                    startingPoints[row]->node = nullptr;
+                                    delete startingPoints[row];
+                                    startingPoints.erase(startingPoints.begin() + row);
+                                    break;
+                                }
+                                 ImGui::SameLine();
+                                
                                 ImGui::ColorEdit4("", (float*)&(startingPoints[row]->point_rgba), ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_NoInputs);
                                 // ImGui::ColorPicker4("My Color", (float*)&(startingPoints[row]->point_rgba), misc_flags, NULL);
                                 // else if (contents_type)
@@ -270,40 +347,45 @@ int main()
                     {
                         modalModify = modifyPointState::CREATE;
                     }
-                }
-                if (ImGui::Button("Visualize"))
-                {
-
-                    for (size_t i = 0; i < map.getTotalRows(); ++i)
-                    {
-                        for (auto node : map.nodes[i])
-                            node->updateNeighbors(map.nodes);
-                    }
-
-
-                    for (auto startNode : startingPoints)
+                    if (ImGui::Button("Visualize"))
                     {
 
-                        if (startNode->node != nullptr)
+                        for (size_t i = 0; i < map.getTotalRows(); ++i)
                         {
-                            exitsStored.clear();
-                            auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map.nodes, map.getTotalRows(), map.getTotalCols(), false);
-
-                            for (auto exitNode : map.exitNodes)
-                            {
-                                uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false);
-                                exitsStored.push_back(std::make_pair(exitNode, nodeCount));
-                            }
-                            auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
-                                                return left.second < right.second;});
-                            uint32_t finalCount = fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true);
+                            for (auto node : map.nodes[i])
+                                node->updateNeighbors(map.nodes);
                         }
 
+
+                        for (auto startNode : startingPoints)
+                        {
+
+                            if (startNode->node != nullptr)
+                            {
+                                exitsStored.clear();
+                                auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map.nodes, map.getTotalRows(), map.getTotalCols(), false);
+
+                                for (auto exitNode : map.exitNodes)
+                                {
+                                    uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false);
+                                    exitsStored.push_back(std::make_pair(exitNode, nodeCount));
+                                }
+                                auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
+                                                    return left.second < right.second;});
+                                uint32_t finalCount = fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true);
+                            }
+
+                        }
+
+
+                        map.initVertexArray();
                     }
-
-
-                    map.initVertexArray();
                 }
+                if (ImGui::CollapsingHeader("Fire Simulation"))
+                {
+                    
+                }
+
             }
 
             if (ImGui::CollapsingHeader("Results"))
@@ -313,15 +395,14 @@ int main()
             if (modalModify == modifyPointState::CREATE)
                 displayModifyModal(modifyPointState::CREATE);
 
+            else if (modalModify == modifyPointState::MODIFY)
+            {
+                displayModifyModal(modifyPointState::MODIFY);
+            }
+
             ImGui::End();
 
             ImGui::SFML::Render(window);
-
-            for (auto startNode : startingPoints)
-            {
-                if (startNode->node != nullptr)
-                    window.draw(startNode->point);
-            }
 
             if (startPointMoving)
             {
@@ -355,16 +436,30 @@ int main()
             }
             window.display();
 
+            if (mouseOnImGui && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                mouseOnImGui = false;
 
-            // * Backends *//
-            if (enableWASD)
+            if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
             {
-                fsim::Controller::keyboardEvent(map.mapView, &window);
+                if (!ImGui::IsAnyItemHovered() && !mouseOnImGui){
+                    // * Backends *//
+                    if (enableWASD)
+                    {
+                        fsim::Controller::keyboardEvent(map.mapView, &window);
+                    }
+
+
+                    if (screenClickHandle == 0)
+                        fsim::Controller::dragEvent(map.mapView, &window);
+                }
+                else
+                {
+                    if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+                    {
+                        mouseOnImGui = true;
+                    }
+                }
             }
-
-
-            if (screenClickHandle == 0)
-                fsim::Controller::dragEvent(map.mapView, &window);
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
                 window.close();
