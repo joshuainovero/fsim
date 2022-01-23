@@ -4,8 +4,8 @@ CC := g++
 CFLAGS := -Wall
 
 # Objects
-SRCOBJS := EntryPoint.o Node.o Map.o Algorithms.o Controller.o
-IMGUIOBJS := imgui.o imgui_demo.o imgui_draw.o imgui_tables.o imgui_widgets.o imgui-SFML.o
+SRCOBJS := main.o Node.o Map.o Algorithms.o Controller.o StartingPoints.o
+IMGUIOBJS := imgui.o imgui_draw.o imgui_tables.o imgui_widgets.o imgui-SFML.o
 OBJS := ${SRCOBJS} ${IMGUIOBJS}
 
 # Dependencies and Paths
@@ -24,7 +24,7 @@ Compile: ${OBJS}
 
 # src
 
-EntryPoint.o: ${SRC}/EntryPoint.cpp
+main.o: ${SRC}/main.cpp
 	${CC} ${CFLAGS} ${INCLUDES} -c $<
 
 Node.o: ${SRC}/Node.cpp
@@ -37,6 +37,9 @@ Algorithms.o: ${SRC}/Algorithms.cpp
 	${CC} ${CFLAGS} ${INCLUDES} -c $<
 
 Controller.o: ${SRC}/Controller.cpp
+	${CC} ${CFLAGS} ${INCLUDES} -c $<
+
+StartingPoints.o: ${SRC}/StartingPoints.cpp
 	${CC} ${CFLAGS} ${INCLUDES} -c $<
 
 # ImGui

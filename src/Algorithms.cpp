@@ -92,6 +92,43 @@ namespace fsim
             return 0;
         }
 
+        std::unordered_map<Node*, Node*> dijkstra(Node* start, Node* end, std::vector<Node*>* tiles, const uint32_t& totalRows, const uint32_t& totalCols, const bool& disp)
+        {
+            std::set<std::pair<uint32_t, Node*>> priority_queue;
+            std::unordered_map<Node*, uint32_t> g_score;
+            std::unordered_map<Node*, Node*> previous_node;
+
+            for (size_t i = 0; i < totalRows; ++i){
+                for (size_t k = 0; k < totalCols; ++k){
+                    g_score[tiles[i][k]] = INT_MAX;
+                }
+            }
+
+            g_score[start] = 0;
+            priority_queue.insert(std::make_pair(g_score[start], start));
+
+            while(!priority_queue.empty()){
+                Node* current_node = (priority_queue.begin())->second;
+
+                uint32_t current_dist = (priority_queue.begin())->first;
+                priority_queue.erase(priority_queue.begin());
+
+                for (auto neighbor : current_node->neighbors){
+                    if (current_dist + 1 < g_score[neighbor]){
+                        auto find_node = priority_queue.find(std::make_pair(g_score[neighbor], neighbor));
+                        if (find_node != priority_queue.end())
+                            priority_queue.erase(find_node);
+
+                        g_score[neighbor] = current_dist + 1;
+                        priority_queue.insert(std::make_pair(g_score[neighbor], neighbor));
+                        previous_node[neighbor] = current_node;
+                    }
+                }
+            }
+
+            return previous_node;
+        }
+
         Node* bfsGetNearestStart(Node* selectedNode, std::vector<Node*>* tiles, const uint32_t& totalRows, const uint32_t& totalCols)
         {
             std::unordered_map<Node*, bool> visited;

@@ -88,15 +88,18 @@ int main()
                     node->updateNeighbors(map.nodes);
             }
 
+            auto previous_nodes =  fsim::Algorithms::dijkstra(map.getStart(), nullptr, map.nodes, map.getTotalRows(), map.getTotalCols(), false);
+
             for (auto exitNode : map.exitNodes)
             {
-                uint32_t nodeCount = fsim::Algorithms::astar(map.getStart(), exitNode, map.nodes, map.getTotalRows(), map.getTotalCols(), false);
+                uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, map.getStart(), previous_nodes, false);
                 exitsStored.push_back(std::make_pair(exitNode, nodeCount));
-            }
 
+            }
             auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
                                 return left.second < right.second;});
-            uint32_t finalCount = fsim::Algorithms::astar(map.getStart(), minExitNode.first, map.nodes, map.getTotalRows(), map.getTotalCols(), true);
+             uint32_t finalCount = fsim::Algorithms::reconstruct_path(minExitNode.first, map.getStart(), previous_nodes, true);
+
             map.initVertexArray();
         }
         ImGui::End();  
