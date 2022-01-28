@@ -4,9 +4,12 @@ CC := g++
 CFLAGS := -Wall
 
 # Objects
-SRCOBJS := main.o Node.o Map.o Algorithms.o Controller.o StartingPoints.o
+DEBUG := Debugger.o
+RELEASE := main.o
+SRCOBJS := Node.o Map.o Algorithms.o Controller.o StartingPoints.o
 IMGUIOBJS := imgui.o imgui_draw.o imgui_tables.o imgui_widgets.o imgui-SFML.o
-OBJS := ${SRCOBJS} ${IMGUIOBJS}
+DEBUGOBJS := ${DEBUG} ${SRCOBJS} ${IMGUIOBJS}
+RELEASEOBJS := ${RELEASE} ${SRCOBJS} ${IMGUIOBJS}
 
 # Dependencies and Paths
 INCLUDES := -Ivendor/SFML/include -Ivendor/imgui
@@ -17,12 +20,20 @@ IMGUISRC := vendor/imgui
 # Output
 TARGET := Simulator
 
-all: Compile clean
+debug: DebugInit clean
+release: ReleaseInit clean
 
-Compile: ${OBJS}
+# Debug Target
+DebugInit: ${DEBUGOBJS}
+	${CC} ${CFLAGS} $^ ${LIBS}
+
+# Release Target
+ReleaseInit: ${RELEASEOBJS}
 	${CC} ${CFLAGS} $^ ${LIBS}
 
 # src
+Debugger.o: ${SRC}/Debugger.cpp
+	${CC} ${CFLAGS} ${INCLUDES} -c $<
 
 main.o: ${SRC}/main.cpp
 	${CC} ${CFLAGS} ${INCLUDES} -c $<
@@ -60,6 +71,7 @@ imgui_widgets.o: ${IMGUISRC}/imgui_widgets.cpp
 
 imgui-SFML.o: ${IMGUISRC}/imgui-SFML.cpp
 	${CC} ${CFLAGS} ${INCLUDES} -c $<
+	
 
 # Clean objs
 clean:

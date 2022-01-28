@@ -5,10 +5,17 @@
 #include "Algorithms.hpp"
 #include <iostream>
 #include <algorithm>
-
+// 400 DPI
+// Then PhotoShop 3840 x 2160 300 DPI
+// Black and white -50% all
 static bool mouseOnImGui = false;
 
 static bool mouseDown = false;
+
+static bool mouseDownDebug = false;
+
+static bool showDefaultPaths = false;
+static bool showDefaultPathTriggered = false;
 
 static std::vector<std::pair<fsim::Node*, uint32_t>> exitsStored;
 
@@ -25,9 +32,10 @@ int main()
         std::cout << "ImGui successs" << std::endl;
     sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height - 1), videoMode.height - 1);
 
-    fsim::Map map(400, "resource/floor12160.png", "MapData/floor1", &window);
+    fsim::Map map(400, "resource/PDF/Ground-2160.png", "MapData/floor1", &window);
     sf::Clock deltaClock;
     static int e = 1;
+
     while (window.isOpen())
     {
 
@@ -61,6 +69,9 @@ int main()
         {
             sf::Vector2u position = map.clickPosition(worldPos);
             map.nodes[position.x][position.y]->reset();
+            auto it = std::find(map.exitNodes.begin(), map.exitNodes.end(), map.nodes[position.x][position.y]);
+            if (it != map.exitNodes.end())
+                map.exitNodes.erase(it);
             map.initVertexArray();
         }
 
@@ -73,22 +84,37 @@ int main()
         // ImGui::ShowDemoWindow();
         bool* p_open = nullptr;
         ImGui::Begin("Debugger - Thesis", p_open, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-        ImGui::Text("Actions");
-        ImGui::RadioButton("Place Path", &e, 0);  ImGui::SameLine(); 
-        ImGui::RadioButton("Navigate", &e, 1); ImGui::SameLine();
-        ImGui::RadioButton("Set Start", &e, 2);
-        ImGui::RadioButton("Set Target", &e, 3); ImGui::SameLine();
+        ImGui::Text("Camera View");
+        ImGui::RadioButton("Navigate", &e, 1);
+        ImGui::Separator();
+        ImGui::Text("Map Editor");
+        ImGui::RadioButton("Place Path", &e, 0);  
         ImGui::RadioButton("Place Target", &e, 4);
+        ImGui::Checkbox("Show default paths", &showDefaultPaths);
+        if (ImGui::Button("Save Changes"))
+        {
+            map.saveChanges();
+        }
+        ImGui::Separator();
+        ImGui::Text("Start/End Points");
+        ImGui::RadioButton("Set Start", &e, 2); 
+        ImGui::RadioButton("Set Target", &e, 3); 
+
+
         if (ImGui::Button("Visualize"))
         {
             exitsStored.clear();
             for (size_t i = 0; i < map.getTotalRows(); ++i)
             {
                 for (auto node : map.nodes[i])
-                    node->updateNeighbors(map.nodes);
+                {
+                    if (node != nullptr)
+                        node->updateNeighbors(map.nodes, map.minCols, map.maxCols);
+
+                }
             }
 
-            auto previous_nodes =  fsim::Algorithms::dijkstra(map.getStart(), nullptr, map.nodes, map.getTotalRows(), map.getTotalCols(), false);
+            auto previous_nodes =  fsim::Algorithms::dijkstra(map.getStart(), nullptr, map.nodes, map.getTotalRows(), std::make_pair(map.minCols, map.maxCols), false);
 
             for (auto exitNode : map.exitNodes)
             {
@@ -115,31 +141,53 @@ int main()
         if (mouseOnImGui && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
             mouseOnImGui = false;
             
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::P))
+
+        if (showDefaultPaths)
         {
-            for (size_t i = 0; i < map.getTotalRows(); ++i)
+            if (!showDefaultPathTriggered)
             {
-                for (auto node : map.nodes[i])
+                for (size_t i = 0; i < map.getTotalRows(); ++i)
                 {
-                    if (node->type == fsim::NODETYPE::DefaultPath && (map.getStart() != node && map.getTarget() != node))
-                        node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                    for (auto node : map.nodes[i])
+                    {
+                        if (node != nullptr)
+                        {
+                            if (node->type == fsim::NODETYPE::DefaultPath && !node->exit && (map.getTarget() != node && map.getStart() != node))
+                                node->switchColor(sf::Color::Blue);
+
+                            if (node->type == fsim::NODETYPE::DefaultPath && node->exit && (map.getTarget() != node && map.getStart() != node))
+                                node->switchColor(sf::Color::Red);
+                        }
+
+                    }
                 }
+
+                map.initVertexArray();
+                showDefaultPathTriggered = true;
             }
-            map.initVertexArray();
+        }
+        else
+        {
+            if (showDefaultPathTriggered)
+            {
+                for (size_t i = 0; i < map.getTotalRows(); ++i)
+                {
+                    for (auto node : map.nodes[i])
+                    {
+                        if (node != nullptr)
+                        {
+                            if (node->type == fsim::NODETYPE::DefaultPath && (map.getStart() != node && map.getTarget() != node))
+                                node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                        }
+                    }
+                }
+
+                map.initVertexArray();
+                showDefaultPathTriggered = false;
+            }
         }
 
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::O))
-        {
-            for (size_t i = 0; i < map.getTotalRows(); ++i)
-            {
-                for (auto node : map.nodes[i])
-                {
-                    if (node->type == fsim::NODETYPE::DefaultPath && (map.getTarget() != node && map.getStart() != node))
-                        node->switchColor(sf::Color::Blue);
-                }
-            }
-            map.initVertexArray();
-        }
+
         if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
         {
             if (!ImGui::IsAnyItemHovered() && !mouseOnImGui){
@@ -148,6 +196,8 @@ int main()
                     {
                         sf::Vector2u position = map.clickPosition(worldPos);
                         map.nodes[position.x][position.y]->setDefaultPath();
+                        if(showDefaultPaths)
+                            map.nodes[position.x][position.y]->switchColor(sf::Color::Blue);
                         map.initVertexArray();
                     }
 
@@ -165,9 +215,7 @@ int main()
                             {
                                 for (auto node : map.nodes[i])
                                 {
-                                    // if ((node->quad[0].color == sf::Color::Yellow || node->quad[0].color == sf::Color::Green) && !(node->exit))
-                                    //     node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
-                                    // else if (node->quad[0].color == sf::Color::Yellow && (node->exit))
+                                    if (node != nullptr)
                                         node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
                                 }
                             }
@@ -179,11 +227,6 @@ int main()
                             map.initVertexArray();
                             map.point.setPosition(sf::Vector2f(map.getStart()->getWorldPos().x + (map.getStart()->getTileSize()/2.0f), 
                             map.getStart()->getWorldPos().y + (map.getStart()->getTileSize()/2.0f)));
-                            // if (map.nodes[position.x][position.y]->type == fsim::NODETYPE::DefaultPath){
-                            //     map.nodes[position.x][position.y]->setStart();
-                            //     map.setStart(map.nodes[position.x][position.y]);
-                            //     map.initVertexArray();
-                            // }
                             mouseDown = true;
                         } 
                     }
@@ -211,6 +254,11 @@ int main()
                         if (map.nodes[position.x][position.y]->type == fsim::NODETYPE::DefaultPath){
                             map.nodes[position.x][position.y]->setDefaultExit();
                             map.nodes[position.x][position.y]->exit = true;
+                            map.exitNodes.push_back(map.nodes[position.x][position.y]);
+
+                            if(showDefaultPaths)
+                                map.nodes[position.x][position.y]->switchColor(sf::Color::Red);
+
                             map.initVertexArray();
                         }  
                     }
@@ -224,6 +272,25 @@ int main()
                 }
             }
         }
+
+
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+        {
+            if (!mouseDownDebug)
+            {   
+                sf::Vector2u position = map.clickPosition(worldPos);
+                if (map.nodes[position.x][position.y] != nullptr)
+                {
+                    std::cout << position.x << " " << position.y << std::endl;
+                    // map.nodes[position.x][position.y]->switchColor(sf::Color::Magenta);
+                    map.initVertexArray();
+                }
+                mouseDownDebug = true;  
+            }
+        }
+        else
+            mouseDownDebug = false;
+
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
             window.close();

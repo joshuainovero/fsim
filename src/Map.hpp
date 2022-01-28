@@ -8,13 +8,16 @@ namespace fsim
     class Map
     {
     public:
-        Map(uint32_t columns, const std::string& mapTexturePath_, const std::string& mapDataPath_, sf::RenderWindow* window);
+        Map(uint32_t columns, const std::string& mapDataPath_, sf::RenderWindow* window);
         ~Map();
 
         void initVertexArray();
+        void saveChanges();
 
         void setStart(Node* node);
         void setTarget(Node* node);
+        void setMapTexture(sf::Texture* texture);
+        void drawMap(sf::RenderWindow* window);
                 
         // getters
         sf::Vector2u clickPosition(sf::Vector2f worldPos) const;
@@ -29,19 +32,18 @@ namespace fsim
         std::vector<Node*>*              nodes;
         std::vector<Node*>               exitNodes;
 
-
-        sf::Sprite mapSprite;
-        sf::View   mapView;
+        sf::View        mapView;
         sf::CircleShape point;
+
+        const size_t minCols = 55;
+        const size_t maxCols = 343;
         
 
     private:
         uint32_t totalRows, totalCols;
         float    tileSize;
 
-        sf::Texture mapTexture;
-        std::string mapTexturePath;
-
+        sf::Sprite  mapSprite;
         std::string mapDataPath;
 
         Node* start;

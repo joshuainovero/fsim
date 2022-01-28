@@ -64,7 +64,7 @@ namespace fsim
         exit = false;
     }
 
-    void Node::updateNeighbors(std::vector<Node*>* nodes)
+    void Node::updateNeighbors(std::vector<Node*>* nodes, uint32_t minCols, uint32_t maxCols)
     {
         neighbors.clear();
 
@@ -74,10 +74,10 @@ namespace fsim
         if (row > 0 && (nodes[row - 1][col]->type == NODETYPE::DefaultPath))
             neighbors.push_back(nodes[row - 1][col]);
 
-        if (col < totalCols - 1 && (nodes[row][col + 1]->type == NODETYPE::DefaultPath))
+        if (col < maxCols - 1 && (nodes[row][col + 1]->type == NODETYPE::DefaultPath))
             neighbors.push_back(nodes[row][col + 1]);
 
-        if (col > 0 && (nodes[row][col - 1]->type == NODETYPE::DefaultPath))
+        if (col > minCols && (nodes[row][col - 1]->type == NODETYPE::DefaultPath))
             neighbors.push_back(nodes[row][col - 1]);
     }
 

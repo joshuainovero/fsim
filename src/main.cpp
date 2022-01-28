@@ -9,31 +9,59 @@
 #include <algorithm>
 #include <string>
 
+// States of the create/modify point modal
 enum modifyPointState { CREATE, MODIFY, NONE};
 
 
-static bool checkBoxDefault = false;
-
-static int radioButtonDefault = 1;
-
+// Floor levels
+enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
+FloorLabel currentEnumFloor = FloorLabel::GROUND;
+const std::vector<std::pair<uint32_t, std::string>> FloorLevels =
+    { std::make_pair(1, "(Ground)"), std::make_pair(2, "(2nd)"), std::make_pair(3, "(3rd)"), std::make_pair(4, "(4th)") };
+const std::vector<std::string> mapTexturePaths =
+    { "resource/PDF/Ground-2160.png", "resource/PDF/2nd-2160.png", "resource/PDF/3rd-2160.png", "resource/PDF/4th-2160.png" };
+// Stores the current modal point state
 static modifyPointState modalModify = modifyPointState::NONE;
 
-static bool mouseOnImGui = false;
+// current floor label
+std::pair<uint32_t, std::string> currentLevel = FloorLevels[FloorLabel::GROUND];
 
-static bool mouseDown = false;
-
-
-// States
-static bool enableWASD = false;
-
-static bool startPointMoving = false;
-
-static int screenClickHandle = 0;
-
+// Holds all starting points that are dynamically created
 static std::vector<fsim::StartingPoints*> startingPoints;
 
+// Calculated paths of all the exits in a given node
+static std::vector<std::pair<fsim::Node*, uint32_t>> exitsStored;
+
+// Temporary starting point pointer
 fsim::StartingPoints* startingPointTemp = nullptr;
 
+// Current map texture
+sf::Texture* currentMapTexture = nullptr;
+
+// Distance of one column with relative to the map
+static const float pixelDistance = 0.4878571428f;
+
+// States to avoid creating c strings every loop to display current loop
+static bool startingPointsChanged = true;
+static char startingPointsCString[19];
+static bool floorChanged = true;
+static char floorCString[24];
+
+// General states
+static bool enableWASD = false;
+static bool startPointMoving = false;
+static bool mouseOnImGui = false;
+static bool mouseDown = false;
+static int  screenClickHandle = 0;
+
+// Modal states 
+static bool alpha_preview = true;
+static bool alpha_half_preview = false;
+static bool drag_and_drop = true;
+static bool options_menu = true;
+static bool hdr = false;
+
+// Marker call back helper functions
 typedef void (*ImGuiDemoMarkerCallback)(const char* file, int line, const char* section, void* user_data);
 extern ImGuiDemoMarkerCallback  GImGuiDemoMarkerCallback;
 extern void*                    GImGuiDemoMarkerCallbackUserData;
@@ -42,6 +70,7 @@ void*                           GImGuiDemoMarkerCallbackUserData = NULL;
 #define IMGUI_DEMO_MARKER(section)  do { if (GImGuiDemoMarkerCallback != NULL) GImGuiDemoMarkerCallback(__FILE__, __LINE__, section, GImGuiDemoMarkerCallbackUserData); } while (0)
 
 
+// Help marker
 static void HelpMarker(const char* desc)
 {
     ImGui::TextDisabled("(?)");
@@ -54,17 +83,10 @@ static void HelpMarker(const char* desc)
         ImGui::EndTooltip();
     }
 }
-
-static bool alpha_preview = true;
-static bool alpha_half_preview = false;
-static bool drag_and_drop = true;
-static bool options_menu = true;
-static bool hdr = false;
-
+// Flags for modify/create point modal
 ImGuiColorEditFlags misc_flags = (hdr ? ImGuiColorEditFlags_HDR : 0) | (drag_and_drop ? 0 : ImGuiColorEditFlags_NoDragDrop) | (alpha_half_preview ? ImGuiColorEditFlags_AlphaPreviewHalf : (alpha_preview ? ImGuiColorEditFlags_AlphaPreview : 0)) | (options_menu ? 0 : ImGuiColorEditFlags_NoOptions);
 
-static std::vector<std::pair<fsim::Node*, uint32_t>> exitsStored;
-
+// Displays create/modify point modal
 static void displayModifyModal(const modifyPointState& state)
 {
     std::string option;
@@ -164,10 +186,23 @@ static void displayModifyModal(const modifyPointState& state)
             startingPointTemp->point_rgba = color;
 
             startingPointTemp = nullptr;
+            startingPointsChanged = true;
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
     }
+}
+
+static void loadMapTexture(fsim::Map& map, const FloorLabel& floor)
+{
+    if (currentMapTexture != nullptr)
+        delete currentMapTexture;
+    
+    currentMapTexture = new sf::Texture();
+    currentMapTexture->loadFromFile(mapTexturePaths[floor]);
+    currentMapTexture->setSmooth(true);
+    map.setMapTexture(currentMapTexture);
+
 }
 
 int main()
@@ -178,12 +213,15 @@ int main()
     bool imGuiInit = ImGui::SFML::Init(window);
     if (imGuiInit)
         std::cout << "ImGui Success!" << std::endl;
-        ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+    ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
 
     sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height), videoMode.height);
 
-    fsim::Map map(400, "resource/floor12160.png", "MapData/floor1", &window);
+    fsim::Map map(400, "MapData/floor1", &window);
+    loadMapTexture(map, currentEnumFloor);
+
     sf::Clock deltaClock;
+    
     while (window.isOpen())
     {
         window.setView(map.mapView);
@@ -206,7 +244,7 @@ int main()
 
             window.clear(sf::Color::White);
 
-            window.draw(map.mapSprite);
+            map.drawMap(&window);
 
             window.draw(*map.nodePositions);
 
@@ -229,6 +267,101 @@ int main()
 
             if (ImGui::CollapsingHeader("Simulator"))
             {
+                if (startingPointsChanged)
+                {
+                    strcpy(startingPointsCString, (std::string("Starting Points: ") + std::string(std::to_string(startingPoints.size()))).c_str());
+                    startingPointsChanged = false;
+                }
+
+                if (floorChanged)
+                {
+                    strcpy(floorCString, (std::string("Floor Level: ") + std::string(std::to_string(currentLevel.first)) + " " + std::string(currentLevel.second)).c_str());
+                    floorChanged = false;
+                }
+                ImGui::Text(floorCString); ImGui::SameLine();
+
+                if (ImGui::Button("Up"))
+                {
+                    if ((FloorLabel)(currentEnumFloor + 1) != FloorLabel::GROUND && 
+                        (FloorLabel)(currentEnumFloor + 1) != FloorLabel::SECOND &&
+                        (FloorLabel)(currentEnumFloor + 1) != FloorLabel::THIRD  &&
+                        (FloorLabel)(currentEnumFloor + 1) != FloorLabel::FOURTH)
+                    {
+                        ImGui::End();
+                        ImGui::SFML::Render(window);
+                        continue;
+                    }
+                    currentLevel = FloorLevels[(FloorLabel)(currentEnumFloor + 1)];
+                    currentEnumFloor = (FloorLabel)(currentEnumFloor + 1);
+                    loadMapTexture(map, currentEnumFloor);
+                    floorChanged = true;
+                }
+                ImGui::SameLine();
+
+                if(ImGui::Button("Down"))
+                {
+                    if ((FloorLabel)(currentEnumFloor - 1) != FloorLabel::GROUND && 
+                        (FloorLabel)(currentEnumFloor - 1) != FloorLabel::SECOND &&
+                        (FloorLabel)(currentEnumFloor - 1) != FloorLabel::THIRD  &&
+                        (FloorLabel)(currentEnumFloor - 1) != FloorLabel::FOURTH)
+                    {
+                        ImGui::End();
+                        ImGui::SFML::Render(window);
+                        continue;
+                    }
+                    currentLevel = FloorLevels[(FloorLabel)(currentEnumFloor - 1)];
+                    currentEnumFloor = (FloorLabel)(currentEnumFloor - 1);
+                    loadMapTexture(map, currentEnumFloor);
+                    floorChanged = true; 
+                }
+                
+                ImGui::Separator();
+
+                if (ImGui::BeginTable("PointsTable", 2))
+                {
+                    ImGui::TableNextColumn(); ImGui::Text(startingPointsCString); 
+                    ImGui::TableNextColumn(); 
+                    ImGui::Text("Ignition Points: 0");
+                    ImGui::EndTable();
+                }
+
+                if (ImGui::Button("Visualize"))
+                {
+
+                    for (size_t i = 0; i < map.getTotalRows(); ++i)
+                    {
+                        for (auto node : map.nodes[i])
+                        {
+                            if (node != nullptr)
+                                node->updateNeighbors(map.nodes, map.minCols, map.maxCols);
+                        }
+                    }
+
+
+                    for (auto startNode : startingPoints)
+                    {
+
+                        if (startNode->node != nullptr)
+                        {
+                            exitsStored.clear();
+                            auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map.nodes, map.getTotalRows(), std::make_pair(map.minCols, map.maxCols), false);
+
+                            for (auto exitNode : map.exitNodes)
+                            {
+                                uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false);
+                                exitsStored.push_back(std::make_pair(exitNode, nodeCount));
+                            }
+                            auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
+                                                return left.second < right.second;});
+                            float finalCount = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true) - 1) * pixelDistance;
+                            std::cout << finalCount << std::endl;
+                        }
+
+                    }
+
+
+                    map.initVertexArray();
+                }
                 if (ImGui::CollapsingHeader("View Controls"))
                 {
                     if (ImGui::BeginTable("split", 2))
@@ -243,7 +376,7 @@ int main()
                     ImGui::Separator();
 
                     float ratio = ((float)fsim::Controller::mouseValue) / (fsim::Controller::zoomValues.size() - 1.0f);
-                    float percent = ratio * 100.0f;
+                    int percent = ratio * 100.0f;
 
                     std::string zoomPercentage = "Zoom: " + std::to_string(percent) + " %%";
                     ImGui::Text(zoomPercentage.c_str()); ImGui::SameLine();
@@ -270,10 +403,10 @@ int main()
                         // Display headers so we can inspect their interaction with borders.
                         // (Headers are not the main purpose of this section of the demo, so we are not elaborating on them too much. See other sections for details)
 
-                            ImGui::TableSetupColumn("Starting Points"); ImGui::SameLine();
+                            ImGui::TableSetupColumn("Starting Points");
                             ImGui::TableHeadersRow();
 
-                        for (int row = 0; row < startingPoints.size(); row++)
+                        for (size_t row = 0; row < startingPoints.size(); row++)
                         {
                             ImGui::TableNextRow();
                             for (int column = 0; column < 1; column++)
@@ -303,7 +436,10 @@ int main()
                                     for (size_t i = 0; i < map.getTotalRows(); ++i)
                                     {
                                         for (auto node : map.nodes[i])
-                                            node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                        {
+                                            if (node != nullptr)
+                                                node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                        }
                                     }
                                     map.initVertexArray();
                                     sf::Color color(sf::Color(
@@ -324,12 +460,16 @@ int main()
                                     for (size_t i = 0; i < map.getTotalRows(); ++i)
                                     {
                                         for (auto node : map.nodes[i])
-                                            node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                        {
+                                            if (node != nullptr)
+                                                node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                        }
                                     }
                                     map.initVertexArray();
                                     startingPoints[row]->node = nullptr;
                                     delete startingPoints[row];
                                     startingPoints.erase(startingPoints.begin() + row);
+                                    startingPointsChanged = true;
                                     break;
                                 }
                                  ImGui::SameLine();
@@ -347,39 +487,7 @@ int main()
                     {
                         modalModify = modifyPointState::CREATE;
                     }
-                    if (ImGui::Button("Visualize"))
-                    {
 
-                        for (size_t i = 0; i < map.getTotalRows(); ++i)
-                        {
-                            for (auto node : map.nodes[i])
-                                node->updateNeighbors(map.nodes);
-                        }
-
-
-                        for (auto startNode : startingPoints)
-                        {
-
-                            if (startNode->node != nullptr)
-                            {
-                                exitsStored.clear();
-                                auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map.nodes, map.getTotalRows(), map.getTotalCols(), false);
-
-                                for (auto exitNode : map.exitNodes)
-                                {
-                                    uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false);
-                                    exitsStored.push_back(std::make_pair(exitNode, nodeCount));
-                                }
-                                auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
-                                                    return left.second < right.second;});
-                                uint32_t finalCount = fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true);
-                            }
-
-                        }
-
-
-                        map.initVertexArray();
-                    }
                 }
                 if (ImGui::CollapsingHeader("Fire Simulation"))
                 {
@@ -416,7 +524,8 @@ int main()
                         {
                             for (auto node : map.nodes[i])
                             {
-                                node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                                if (node != nullptr)
+                                    node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
                             }
                         }
                         sf::Vector2u position = map.clickPosition(worldPos);
@@ -434,6 +543,7 @@ int main()
                 }
                 else mouseDown = false;
             }
+
             window.display();
 
             if (mouseOnImGui && ImGui::IsMouseReleased(ImGuiMouseButton_Left))

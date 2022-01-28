@@ -1,5 +1,6 @@
 tests/
 External/
 mapdatabackups/
+resource/PDF/
 *.exe
 *.ini

@@ -3,13 +3,8 @@
 
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode(500,500), "Window", sf::Style::Close);
+    sf::RenderWindow window(sf::VideoMode(1366,728), "Window", sf::Style::Fullscreen);
 
-    sf::Color color = sf::Color(0.0f, 255.0f, 0.0f, 255.0f);
-    std::cout << color.r << " " << color.g << " " << color.b << " " << color.a << std::endl;
-    sf::RectangleShape ex;
-    ex.setSize(sf::Vector2f(100.0f, 100.0f));
-    ex.setFillColor(color);
     while (window.isOpen())
     {   
         sf::Event event;
@@ -20,8 +15,10 @@ int main()
         }
 
         window.clear();
-        window.draw(ex);
         window.display();
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+            window.close();
     }
 
     return 0;

@@ -92,14 +92,14 @@ namespace fsim
             return 0;
         }
 
-        std::unordered_map<Node*, Node*> dijkstra(Node* start, Node* end, std::vector<Node*>* tiles, const uint32_t& totalRows, const uint32_t& totalCols, const bool& disp)
+        std::unordered_map<Node*, Node*> dijkstra(Node* start, Node* end, std::vector<Node*>* tiles, const uint32_t& totalRows, const std::pair<uint32_t, uint32_t>& cols, const bool& disp)
         {
             std::set<std::pair<uint32_t, Node*>> priority_queue;
             std::unordered_map<Node*, uint32_t> g_score;
             std::unordered_map<Node*, Node*> previous_node;
 
             for (size_t i = 0; i < totalRows; ++i){
-                for (size_t k = 0; k < totalCols; ++k){
+                for (size_t k = cols.first; k < cols.second; ++k){
                     g_score[tiles[i][k]] = INT_MAX;
                 }
             }
@@ -150,7 +150,7 @@ namespace fsim
 
                 if (row  < (int)totalRows - 1)
                 {
-                    if (!visited[tiles[row + 1][col]])
+                    if (!visited[tiles[row + 1][col]] && tiles[row + 1][col] != nullptr)
                     {
                         pQueue.push(tiles[row + 1][col]);
                         visited[currentNode] = true;
@@ -159,7 +159,7 @@ namespace fsim
                 
                 if (row  > 0)
                 {
-                    if (!visited[tiles[row - 1][col]])
+                    if (!visited[tiles[row - 1][col]] && tiles[row - 1][col] != nullptr)
                     {
                         pQueue.push(tiles[row - 1][col]);
                         visited[currentNode] = true;
@@ -167,7 +167,7 @@ namespace fsim
                 }
                 if (col  < (int)totalCols - 1)
                 {
-                    if (!visited[tiles[row][col + 1]])
+                    if (!visited[tiles[row][col + 1]] && tiles[row][col + 1] != nullptr)
                     {
                         pQueue.push(tiles[row][col + 1]);
                         visited[currentNode] = true;
@@ -176,7 +176,7 @@ namespace fsim
 
                 if (col > 0)
                 {
-                    if (!visited[tiles[row][col - 1]])
+                    if (!visited[tiles[row][col - 1]] && tiles[row][col - 1] != nullptr)
                     {
                         pQueue.push(tiles[row][col - 1]);
                         visited[currentNode] = true;

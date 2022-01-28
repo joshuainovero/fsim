@@ -5,6 +5,7 @@
 namespace fsim
 {
     enum NODETYPE {DefaultPath, Path, Obstruction, None};
+    
     class Node
     {
     public:
@@ -19,7 +20,7 @@ namespace fsim
         void setObstruction();
         void reset();
 
-        void updateNeighbors(std::vector<Node*>* nodes);
+        void updateNeighbors(std::vector<Node*>* nodes, uint32_t minCols, uint32_t maxCols);
 
         //getters
         sf::Vector2i getPosition() const;
