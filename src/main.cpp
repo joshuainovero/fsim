@@ -1,17 +1,17 @@
 #include "../vendor/imgui/imgui.h"
 #include "../vendor/imgui/imgui-SFML.h"
 #include <SFML/Graphics.hpp>
-#include "Map.hpp"
+#include "Floormap.hpp"
 #include "Controller.hpp"
 #include "Algorithms.hpp"
 #include "StartingPoints.hpp"
 #include <iostream>
 #include <algorithm>
 #include <string>
+#include <math.h>
 
 // States of the create/modify point modal
 enum modifyPointState { CREATE, MODIFY, NONE};
-
 
 // Floor levels
 enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
@@ -193,7 +193,7 @@ static void displayModifyModal(const modifyPointState& state)
     }
 }
 
-static void loadMapTexture(fsim::Map& map, const FloorLabel& floor)
+static void loadMapTexture(fsim::Floormap& map, const FloorLabel& floor)
 {
     if (currentMapTexture != nullptr)
         delete currentMapTexture;
@@ -202,7 +202,17 @@ static void loadMapTexture(fsim::Map& map, const FloorLabel& floor)
     currentMapTexture->loadFromFile(mapTexturePaths[floor]);
     currentMapTexture->setSmooth(true);
     map.setMapTexture(currentMapTexture);
+}
 
+static void modifyNodes(fsim::Floormap& map, std::function<void(fsim::Node*)> operations)
+{
+    for (size_t i = 0; i < map.getTotalRows(); ++i)
+    {
+        for (size_t k = map.minCols; k < map.maxCols; ++k)
+        {
+            operations(map.nodes[i][k]);
+        }
+    }
 }
 
 int main()
@@ -217,7 +227,27 @@ int main()
 
     sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height), videoMode.height);
 
-    fsim::Map map(400, "MapData/floor1", &window);
+    const float boardWidth = 1366.0f;
+    const uint32_t totalCols = 400;
+    const float tileSize = boardWidth / (float)totalCols;
+    uint32_t totalRows = std::ceil((float)768.0f / tileSize);
+    std::vector<fsim::Node*>* nodes = new std::vector<fsim::Node*>[totalRows];
+    for (size_t row_i = 0; row_i < totalRows; ++row_i)
+    {
+        for (size_t col_i = 0; col_i < totalCols; ++col_i)
+        {
+            if (col_i >= fsim::Floormap::minCols && col_i < fsim::Floormap::maxCols)
+            {
+                nodes[row_i].push_back(new fsim::Node(row_i, col_i, tileSize, totalRows, totalCols));
+            }
+            else
+                nodes[row_i].push_back(nullptr);
+        }
+    }
+
+
+    fsim::Floormap map(400, "floordata/floor1", &window, nodes);
+    map.copy_node_data_to_node_pointers();
     loadMapTexture(map, currentEnumFloor);
 
     sf::Clock deltaClock;
@@ -328,15 +358,7 @@ int main()
                 if (ImGui::Button("Visualize"))
                 {
 
-                    for (size_t i = 0; i < map.getTotalRows(); ++i)
-                    {
-                        for (auto node : map.nodes[i])
-                        {
-                            if (node != nullptr)
-                                node->updateNeighbors(map.nodes, map.minCols, map.maxCols);
-                        }
-                    }
-
+                    modifyNodes(map, [&map](fsim::Node* node){ node->updateNeighbors(map.nodes, map.minCols, map.maxCols); });
 
                     for (auto startNode : startingPoints)
                     {
@@ -433,14 +455,7 @@ int main()
                                 ImGui::SameLine();
                                 if (ImGui::Button(("Move##" + std::to_string(row)).c_str()))
                                 {
-                                    for (size_t i = 0; i < map.getTotalRows(); ++i)
-                                    {
-                                        for (auto node : map.nodes[i])
-                                        {
-                                            if (node != nullptr)
-                                                node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
-                                        }
-                                    }
+                                    modifyNodes(map, [&map](fsim::Node* node) { node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); });
                                     map.initVertexArray();
                                     sf::Color color(sf::Color(
                                         startingPoints[row]->point_rgba.x * 255.0f,
@@ -457,14 +472,7 @@ int main()
                                 ImGui::SameLine();
                                 if(ImGui::Button(("Delete##" + std::to_string(row)).c_str()))
                                 {
-                                    for (size_t i = 0; i < map.getTotalRows(); ++i)
-                                    {
-                                        for (auto node : map.nodes[i])
-                                        {
-                                            if (node != nullptr)
-                                                node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
-                                        }
-                                    }
+                                    modifyNodes(map, [&map](fsim::Node* node) { node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); });
                                     map.initVertexArray();
                                     startingPoints[row]->node = nullptr;
                                     delete startingPoints[row];
@@ -520,14 +528,6 @@ int main()
                 if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
                 {
                     if (!mouseDown){
-                        for (size_t i = 0; i < map.getTotalRows(); ++i)
-                        {
-                            for (auto node : map.nodes[i])
-                            {
-                                if (node != nullptr)
-                                    node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
-                            }
-                        }
                         sf::Vector2u position = map.clickPosition(worldPos);
                         fsim::Node* selectedNode = map.nodes[position.x][position.y];
                         fsim::Node* calculatedSelectedNode = fsim::Algorithms::bfsGetNearestStart(selectedNode, map.nodes, map.getTotalRows(), map.getTotalCols());
@@ -569,6 +569,21 @@ int main()
                         mouseOnImGui = true;
                     }
                 }
+            }
+
+            if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
+            {
+                std::cout << "e" << std::endl;
+                for (size_t i = 0; i < totalRows; ++i)
+                {
+                    for (size_t k = 37; k < 359; ++k)
+                    {
+                        if (map.nodes[i][k]->type == fsim::NODETYPE::DefaultPath)
+                            map.nodes[i][k]->switchColor(sf::Color::Blue);
+
+                    }
+                }
+                map.initVertexArray();
             }
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
