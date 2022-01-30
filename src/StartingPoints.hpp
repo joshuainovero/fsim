@@ -7,23 +7,18 @@
 
 namespace fsim
 {
-    class StartingPoints
+    struct StartingPoints
     {
-    public:
         StartingPoints();
-
         ~StartingPoints();
 
-        ImVec4 point_rgba;
+        sf::CircleShape point;      // Point circle UI
+        std::string     label;      // Label of a point
+        ImVec4          point_rgba; // RGBA values of a point
 
-        std::string label;
+        Node* node = nullptr; // Node pointer
 
-        Node* node = nullptr;
-
-        sf::CircleShape point;
-
-        char buffer[7] = "";
-
+        char buffer[7] = ""; // Char buffer of label
 
     };  
 }
