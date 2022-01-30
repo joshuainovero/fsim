@@ -1,6 +1,10 @@
+.vscode/
 tests/
 External/
 mapdatabackups/
 resource/PDF/
+
+*.ini
+*.dll
 *.exe
 *.ini
