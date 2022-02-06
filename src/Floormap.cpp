@@ -6,7 +6,7 @@
 namespace fsim
 {
     Floormap::Floormap(uint32_t columns, const std::string& mapDataPath_, sf::RenderWindow* window, std::vector<Node*>* nodes_)
-        : totalCols(columns), mapDataPath(mapDataPath_), start(nullptr), target(nullptr)
+        : totalNodesGenerated(0), mouseValue(4), totalCols(columns), mapDataPath(mapDataPath_), start(nullptr), target(nullptr)
     {
         const float boardWidth = 1366.0f;
 
@@ -29,12 +29,16 @@ namespace fsim
                         {
                             nodes[row_i].push_back(new Node(row_i, col_i, tileSize, totalRows, totalCols));
                             if (state == "1")
+                            {
                                 nodes[row_i][col_i]->setDefaultPath();
+                                totalNodesGenerated++;
+                            }
                             else if (state == "2")
                             {
                                 nodes[row_i][col_i]->setDefaultExit();
                                 nodes[row_i][col_i]->exit = true;
                                 exitNodes.push_back(nodes[row_i][col_i]);
+                                totalNodesGenerated++;
                             }
                         }
                         else
@@ -70,8 +74,8 @@ namespace fsim
         mapView.setSize(sf::Vector2f(1366.0f, 768.0f));
         mapView.setCenter(sf::Vector2f(1366.0f / 2.0f, 768.0f / 2.0f));
 
-        sf::Vector2f mapSize(1366.0f * fsim::Controller::zoomValues[fsim::Controller::mouseValue], 
-            768.0f * fsim::Controller::zoomValues[fsim::Controller::mouseValue]);
+        sf::Vector2f mapSize(1366.0f * fsim::Controller::zoomValues[mouseValue], 
+            768.0f * fsim::Controller::zoomValues[mouseValue]);
 
         mapView.setSize(sf::Vector2f(mapSize.x, mapSize.y));
         window->setView(mapView);
@@ -84,7 +88,12 @@ namespace fsim
         {
             for (size_t k = minCols; k < maxCols; ++k)
             {
-                delete nodes[i][k];
+                if (nodes[i][k] != nullptr)
+                {
+                    delete nodes[i][k];
+                    nodes[i][k] = nullptr;
+                }
+
             }
         }
         

@@ -2,6 +2,7 @@
 #include <memory>
 #include "Node.hpp"
 #include "Controller.hpp"
+#include "StartingPoints.hpp"
 
 namespace fsim
 {
@@ -41,11 +42,16 @@ namespace fsim
         std::unique_ptr<sf::VertexArray> nodePositions; // Stores vertex positions and colors of generated nodes
         std::vector<Node*>*              nodes;         // Vector pointer of pointer nodes
         std::vector<Node*>               exitNodes;     // Stores all the exits of a floor
+        std::vector<fsim::StartingPoints*> startingPoints;
+        
 
         sf::View mapView; // Map Camera/View
 
         inline static const size_t minCols = 37;  // Minimum columns
         inline static const size_t maxCols = 359; // Maximum columns
+
+        uint32_t totalNodesGenerated; // Total nodes generated
+        uint32_t mouseValue;          // Mouse value for camera zoom ins and outs
         
 
     private:
