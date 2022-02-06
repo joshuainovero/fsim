@@ -52,12 +52,13 @@ namespace fsim
 
         NODETYPE type; // Node type
         bool     exit; // Determines if the node is an exit
+        float x, y;     // Position of the node with respect to the camera view
+
 
     private:
         uint32_t row; // Horizontal
         uint32_t col; // Vertical
 
-        float x, y;     // Position of the node with respect to the camera view
         float tileSize; // Size of a single node with respect to the monitor
 
         uint32_t totalRows; // Total rows of the graph

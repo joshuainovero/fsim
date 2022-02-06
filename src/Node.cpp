@@ -59,7 +59,8 @@ namespace fsim
 
     void Node::setPath()
     {
-        switchColor(sf::Color(255.0f, 254.0f, 106.0f, 255.0f));
+        // switchColor(sf::Color(255.0f, 254.0f, 106.0f, 255.0f));
+        switchColor(sf::Color::Green);
     }
 
     void Node::setDefaultPath()
