@@ -6,7 +6,7 @@ namespace fsim
     {
         const std::vector<float> zoomValues { 1.0f, 0.95f, 0.90f, 0.85f, 0.80f, 0.75, 0.70, 0.65f, 0.60f, 0.55f, 0.50f, 0.45f, 0.40f, 0.35f, 0.30f };
 
-        uint32_t mouseValue = 4;
+        // uint32_t mouseValue = 4;
 
         bool mouseDown = false;
 
@@ -37,7 +37,7 @@ namespace fsim
                 mapView.move(0, -(window->mapPixelToCoords(windowMode).y - 768));
         }
 
-        void zoomEvent(const int& mouseWheelDelta, sf::View& mapView, sf::RenderWindow* window)
+        void zoomEvent(const int& mouseWheelDelta, sf::View& mapView, sf::RenderWindow* window, uint32_t& mouseValue)
         {
             if (mouseWheelDelta > 0 && mouseValue < zoomValues.size() - 1)
                 mouseValue += 1;

@@ -7,7 +7,7 @@ namespace fsim
     namespace Controller
     {
         extern const std::vector<float> zoomValues; // Constant mouse zoom multipliers
-        extern uint32_t                 mouseValue; // Current mouse value
+        // extern uint32_t                 mouseValue; // Current mouse value
 
         extern bool mouseDown; // Determines if mouse is on click
         
@@ -24,7 +24,7 @@ namespace fsim
         void autoAdjustView(sf::View& mapView, sf::RenderWindow* window);
 
         // Event that handles scroll zooms
-        void zoomEvent(const int& mouseWheelDelta, sf::View& mapView, sf::RenderWindow* window);
+        void zoomEvent(const int& mouseWheelDelta, sf::View& mapView, sf::RenderWindow* window, uint32_t& mouseValue);
 
         // Event that handles keyboard navigation
         void keyboardEvent(sf::View& view, sf::RenderWindow* window);
