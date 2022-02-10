@@ -26,6 +26,7 @@ namespace fsim
         void copy_node_data_to_node_pointers(); 
         void copy_node_pointers_to_node_data();
 
+        // Generates fire graphics on the fire point
         void generateFireGraphics(Node* fireSourceNode, sf::Texture* iconTexture);
                 
         // Getters
@@ -42,10 +43,10 @@ namespace fsim
         void setTarget(Node* node);
 
     public:
-        std::unique_ptr<sf::VertexArray> nodePositions; // Stores vertex positions and colors of generated nodes
-        std::vector<Node*>*              nodes;         // Vector pointer of pointer nodes
-        std::vector<Node*>               exitNodes;     // Stores all the exits of a floor
-        std::vector<fsim::StartingPoints*> startingPoints;
+        std::unique_ptr<sf::VertexArray>   nodePositions;  // Stores vertex positions and colors of generated nodes
+        std::vector<fsim::StartingPoints*> startingPoints; // Stores starting point objects
+        std::vector<Node*>*                nodes;          // Vector pointer of pointer nodes
+        std::vector<Node*>                 exitNodes;      // Stores all the exits of a floor
         
 
         sf::View mapView; // Map Camera/View

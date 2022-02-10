@@ -12,13 +12,14 @@ namespace fsim
         FireGraphics(Node* fireSourceNode, const FloorLabel& floor, sf::Texture* iconTexture);
         ~FireGraphics();
 
+        // Draws the sprite and the danger area
         void draw(sf::RenderWindow* window);
 
     public:
-        Node* node;
+        Node* node; // Fire point node
 
     private:
-        sf::Sprite sprite;
-        sf::CircleShape area;
+        sf::Sprite      sprite; // Fire icon
+        sf::CircleShape area;   // Graphical representation of danger area
     };
 }
