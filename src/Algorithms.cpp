@@ -114,6 +114,9 @@ namespace fsim
                 priority_queue.erase(priority_queue.begin());
 
                 for (auto neighbor : current_node->neighbors){
+                    if (neighbor->obstruction == true)
+                        continue;
+                        
                     if (current_dist + 1 < g_score[neighbor]){
                         auto find_node = priority_queue.find(std::make_pair(g_score[neighbor], neighbor));
                         if (find_node != priority_queue.end())
