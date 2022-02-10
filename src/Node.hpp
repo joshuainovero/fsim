@@ -50,14 +50,19 @@ namespace fsim
         std::vector<Node*> neighbors; // Neighbor nodes of this instance
         sf::VertexArray    quad;      // 4 Vertex positions and colors - QUAD
 
-        NODETYPE type; // Node type
-        bool     exit; // Determines if the node is an exit
-        float x, y;     // Position of the node with respect to the camera view
+        NODETYPE type;        // Node type
+        bool     exit;        // True if node is an exit
+        bool     obstruction; // True if node is an obstruction
+
+        uint32_t row; // Horizontal
+        uint32_t col; // Vertical
 
 
     private:
-        uint32_t row; // Horizontal
-        uint32_t col; // Vertical
+        // uint32_t row; // Horizontal
+        // uint32_t col; // Vertical
+        float x, y;     // Position of the node with respect to the camera view
+
 
         float tileSize; // Size of a single node with respect to the monitor
 
