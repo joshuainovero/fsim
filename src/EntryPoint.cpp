@@ -9,6 +9,11 @@
 #include <string>
 #include <math.h>
 
+// 30 feet = 9.144 meters
+// 1 box = 3.415 pixels/box
+// 1 box = 0.5544342178 meters/box
+// 9.144 meters in pixels = 56.32184847 pixels
+
 // States of the create/modify point modal
 enum modifyPointState { CREATE, MODIFY, NONE};
 
@@ -16,7 +21,7 @@ enum modifyPointState { CREATE, MODIFY, NONE};
 std::shared_ptr<fsim::Floormap> map;
 
 // Floor levels
-enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
+// enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
 
 // Current Floor Enum Level
 FloorLabel currentEnumFloor = FloorLabel::GROUND;
@@ -62,6 +67,7 @@ static bool startPointMoving = false;
 static bool mouseOnImGui = false;
 static bool mouseDown = false;
 static int  screenClickHandle = 0;
+static float heatFluxValue = 200;
 
 // Modal states 
 static bool alpha_preview = true;
@@ -258,10 +264,10 @@ int main()
 
     std::vector<std::shared_ptr<fsim::Floormap>> FloorMapObjects 
     {
-        std::make_shared<fsim::Floormap>(400, "floordata/ground-level.map", &window, nodes),
-        std::make_shared<fsim::Floormap>(400, "floordata/2nd-level.map", &window, nodes),
-        std::make_shared<fsim::Floormap>(400, "floordata/3rd-level.map", &window, nodes),
-        std::make_shared<fsim::Floormap>(400, "floordata/4th-level.map", &window, nodes)
+        std::make_shared<fsim::Floormap>(400, "floordata/ground-level.map", &window, FloorLabel::GROUND, nodes),
+        std::make_shared<fsim::Floormap>(400, "floordata/2nd-level.map", &window, FloorLabel::SECOND, nodes),
+        std::make_shared<fsim::Floormap>(400, "floordata/3rd-level.map", &window, FloorLabel::THIRD, nodes),
+        std::make_shared<fsim::Floormap>(400, "floordata/4th-level.map", &window, FloorLabel::FOURTH, nodes)
     };
 
     map = FloorMapObjects[currentEnumFloor];
@@ -269,8 +275,15 @@ int main()
     loadMapTexture(*map, currentEnumFloor);
 
     // map->nodes[100][200]->switchColor(sf::Color::Red);
-    // float pytha = std::sqrt(std::pow(map->nodes[202][100]->x - map->nodes[200][100]->x, 2.0f) + std::pow(map->nodes[202][100]->y - map->nodes[200][100]->y, 2));
+    // float pytha = std::sqrt(std::pow(map->nodes[201][101]->col - map->nodes[200][100]->col, 2.0f) + std::pow(map->nodes[201][101]->row - map->nodes[200][100]->row, 2));
     // std::cout << pytha << std::endl;
+
+    // sf::CircleShape circle;
+    // circle.setRadius(56.32184847f);
+    // circle.setFillColor(sf::Color::Green);
+    // const float t_half_size = 3.415f/2.0f;
+    // circle.setPosition(sf::Vector2f(map->nodes[100][200]->x + t_half_size, map->nodes[100][200]->y + t_half_size));
+    // circle.setOrigin(sf::Vector2f(circle.getRadius(), circle.getRadius()));
 
     // for (size_t i = 0; i < map->getTotalRows(); ++i)
     // {
@@ -278,14 +291,20 @@ int main()
     //     {
     //         if (map->nodes[i][k] != map->nodes[100][200])
     //         {
-    //             float pytha = std::sqrt(std::pow(map->nodes[100][200]->x - map->nodes[i][k]->x, 2.0f) + std::pow(map->nodes[100][200]->y - map->nodes[i][k]->y, 2));
-    //             if (pytha <= 40.0f)
-    //                 map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 85));
+    //             // float pytha = std::sqrt(std::pow(map->nodes[100][200]->col - map->nodes[i][k]->col, 2.0f) + std::pow(map->nodes[100][200]->row - map->nodes[i][k]->row, 2.0f));
+    //             float pytha = std::sqrt(std::pow((float)map->nodes[100][200]->col - (float)map->nodes[i][k]->col, (float)2.0f) + std::pow((float)map->nodes[100][200]->row - (float)map->nodes[i][k]->row, (float)2.0f));
+    //             // 0.51225 - door
+    //             if (pytha * 0.5544342178f <= 9.144f)
+    //                 map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
     //         }
 
     //     }
     // }
     // map->initVertexArray();
+
+    sf::Texture fireIconTexture;
+    fireIconTexture.loadFromFile("resource/FireIcon.png");
+    fireIconTexture.setSmooth(true);
 
     sf::Clock deltaClock;
     
@@ -313,6 +332,7 @@ int main()
 
             map->drawMap(&window);
 
+            // window.draw(circle);
             window.draw(*map->nodePositions);
 
             for (auto startNode : map->startingPoints)
@@ -320,6 +340,9 @@ int main()
                 if (startNode->node != nullptr)
                     window.draw(startNode->point);
             }
+
+            // window.draw(sprite);
+            // window.draw(nigger);
 
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
             ImGui::Begin("MU Fire Escape Simulator");
@@ -501,7 +524,12 @@ int main()
                                 ImGui::SameLine();
                                 if (ImGui::Button(("Move##" + std::to_string(row)).c_str()))
                                 {
-                                    modifyNodes(*map, [](fsim::Node* node) { node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); });
+                                    screenClickHandle = 0;
+                                    modifyNodes(*map, [](fsim::Node* node) { 
+                                        if (node->obstruction == false)
+                                            node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); 
+                                    });
+
                                     map->initVertexArray();
                                     sf::Color color(sf::Color(
                                         map->startingPoints[row]->point_rgba.x * 255.0f,
@@ -543,9 +571,11 @@ int main()
                     }
 
                 }
-                if (ImGui::CollapsingHeader("Fire Simulation"))
+                if (ImGui::CollapsingHeader("Fire Sources"))
                 {
-                    
+                    ImGui::RadioButton("Manually add fire source", &screenClickHandle, 1);
+                    ImGui::PushItemWidth(150.0f);
+                    ImGui::SliderFloat("Heat Flux (kW/m2) ", &heatFluxValue, 0.0f, 300.0f);
                 }
 
             }
@@ -607,6 +637,39 @@ int main()
 
                     if (screenClickHandle == 0)
                         fsim::Controller::dragEvent(map->mapView, &window);
+
+                    else if (screenClickHandle == 1)
+                    {
+                        if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+                        {
+                            if (!mouseDown)
+                            {
+                                sf::Vector2u position = map->clickPosition(worldPos);
+                                fsim::Node* selectedNode = map->nodes[position.x][position.y];
+                                selectedNode->switchColor(sf::Color(255, 70, 0, 255.0f));
+                                map->generateFireGraphics(selectedNode, &fireIconTexture);
+                                for (size_t i = 0; i < map->getTotalRows(); ++i)
+                                {
+                                    for (size_t k = map->minCols; k < map->maxCols; ++k)
+                                    {
+                                        if (map->nodes[i][k] != selectedNode)
+                                        {
+                                            float distance = std::sqrt(std::pow((float)selectedNode->col - (float)map->nodes[i][k]->col, (float)2.0f) + std::pow((float)selectedNode->row - (float)map->nodes[i][k]->row, (float)2.0f));
+                                            if (distance * 0.5544342178f <= 9.144f)
+                                            {
+                                                // map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
+                                                map->nodes[i][k]->obstruction = true;
+                                                
+                                            }
+                                        }
+
+                                    }
+                                }
+                                map->initVertexArray();
+                                mouseDown = true;
+                            }
+                        } else mouseDown = false;
+                    }
                 }
                 else
                 {
@@ -617,20 +680,32 @@ int main()
                 }
             }
 
-            if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
-            {
-                std::cout << "e" << std::endl;
-                for (size_t i = 0; i < totalRows; ++i)
-                {
-                    for (size_t k = 37; k < 359; ++k)
-                    {
-                        if (map->nodes[i][k]->type == fsim::NODETYPE::DefaultPath)
-                            map->nodes[i][k]->switchColor(sf::Color::Blue);
+            // if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+            // {
+            //     // for (size_t i = 0; i < totalRows; ++i)
+            //     // {
+            //     //     for (size_t k = 37; k < 359; ++k)
+            //     //     {
+            //     //         if (map->nodes[i][k]->type == fsim::NODETYPE::DefaultPath)
+            //     //             map->nodes[i][k]->switchColor(sf::Color::Blue);
 
-                    }
-                }
-                map->initVertexArray();
-            }
+            //     //     }
+            //     // }
+            //     // map->initVertexArray();
+            //     if (!mouseDown)
+            //     {
+            //         sf::Vector2u position = map->clickPosition(worldPos);
+            //         fsim::Node* selectedNode = map->nodes[position.x][position.y];
+            //         selectedNode->switchColor(sf::Color::Magenta);
+            //         std::cout << "X2: " << map->nodes[100][200]->col << " " << "X2: " << selectedNode->col << std::endl;
+            //         std::cout << "Y1: " << map->nodes[100][200]->row << " " << "Y2: " << selectedNode->row << std::endl;
+            //         float pytha = std::sqrt(std::pow((float)map->nodes[100][200]->col - (float)selectedNode->col, (float)2.0f) + std::pow((float)map->nodes[100][200]->row - (float)selectedNode->row, (float)2.0f));
+            //         std::cout << "Distance : " << pytha * 0.415f << std::endl;
+            //         std::cout << "Orig: " << pytha << std::endl;
+            //         map->initVertexArray();
+            //         mouseDown = true;
+            //     }
+            // } else mouseDown = false;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
                 window.close();
