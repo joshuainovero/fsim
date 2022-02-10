@@ -3,13 +3,14 @@
 #include "Node.hpp"
 #include "Controller.hpp"
 #include "StartingPoints.hpp"
+#include "FireGraphics.hpp"
 
 namespace fsim
 {
     class Floormap
     {
     public:
-        Floormap(uint32_t columns, const std::string& mapDataPath_, sf::RenderWindow* window, std::vector<Node*>* nodes_ = nullptr);
+        Floormap(uint32_t columns, const std::string& mapDataPath_, sf::RenderWindow* window, FloorLabel floor_, std::vector<Node*>* nodes_ = nullptr);
         ~Floormap();
 
         // Initializes vertex positions and colors of all generated nodes into one array
@@ -24,6 +25,8 @@ namespace fsim
         // Copies data between node datas and node pointers
         void copy_node_data_to_node_pointers(); 
         void copy_node_pointers_to_node_data();
+
+        void generateFireGraphics(Node* fireSourceNode, sf::Texture* iconTexture);
                 
         // Getters
         sf::Vector2u clickPosition(sf::Vector2f worldPos) const;
@@ -55,12 +58,14 @@ namespace fsim
         
 
     private:
-        std::vector<char>   nodeDatas; // Stores the data of the floor map
-        uint32_t totalRows, totalCols; // Dimensions of the graph
-        float    tileSize;             // Size of a single tile
+        std::vector<FireGraphics> fireGraphicsList;     // Stores graphic fires
+        std::vector<char>         nodeDatas;            // Stores the data of the floor map
+        uint32_t                  totalRows, totalCols; // Dimensions of the graph
+        float                     tileSize;             // Size of a single tile
 
         sf::Sprite  mapSprite;   // Map image or sprite
         std::string mapDataPath; // File path of texture
+        FloorLabel  floor;       // floor
 
         Node* start;  // Start node - FOR DEBUGGING
         Node* target; // Target node - FOR DEBUGGING

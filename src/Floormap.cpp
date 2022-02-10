@@ -5,8 +5,8 @@
 
 namespace fsim
 {
-    Floormap::Floormap(uint32_t columns, const std::string& mapDataPath_, sf::RenderWindow* window, std::vector<Node*>* nodes_)
-        : totalNodesGenerated(0), mouseValue(4), totalCols(columns), mapDataPath(mapDataPath_), start(nullptr), target(nullptr)
+    Floormap::Floormap(uint32_t columns, const std::string& mapDataPath_, sf::RenderWindow* window, FloorLabel floor_, std::vector<Node*>* nodes_)
+        : totalNodesGenerated(0), mouseValue(4), totalCols(columns), mapDataPath(mapDataPath_), floor(floor_), start(nullptr), target(nullptr)
     {
         const float boardWidth = 1366.0f;
 
@@ -163,7 +163,13 @@ namespace fsim
         );
     }
 
-    void Floormap::drawMap(sf::RenderWindow* window) { window->draw(mapSprite); }
+    void Floormap::drawMap(sf::RenderWindow* window) { 
+        window->draw(mapSprite); 
+        for (auto& fireG : fireGraphicsList)
+        {
+            fireG.draw(window);
+        }
+    }
 
     void Floormap::copy_node_data_to_node_pointers()
     {
@@ -207,6 +213,11 @@ namespace fsim
                 }
             }
         }
+    }
+
+    void Floormap::generateFireGraphics(Node* fireSourceNode, sf::Texture* iconTexture)
+    {
+        fireGraphicsList.push_back(FireGraphics(fireSourceNode, floor, iconTexture));
     }
 
     sf::Vector2u Floormap::clickPosition(sf::Vector2f worldPos) const
