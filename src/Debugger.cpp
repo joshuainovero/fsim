@@ -12,7 +12,7 @@
 // Then PhotoShop 3840 x 2160 300 DPI
 // Black and white -50% all
 
-enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
+// enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
 FloorLabel currentEnumFloor = FloorLabel::GROUND;
 
 const std::vector<std::string> mapTexturePaths =
@@ -68,7 +68,7 @@ int main()
         std::cout << "ImGui successs" << std::endl;
     sf::Vector2f ImGuiWindowSize(330.0f, videoMode.height);
 
-    fsim::Floormap map(400, mapDataPaths[currentEnumFloor], &window);
+    fsim::Floormap map(400, mapDataPaths[currentEnumFloor], &window, currentEnumFloor);
     loadMapTexture(map, currentEnumFloor);
     const char* LabelLevelCStr = FloorLevelStrings[currentEnumFloor].second.c_str();
     char ImGuiTitle[] = "Debugger - Floor: ";
