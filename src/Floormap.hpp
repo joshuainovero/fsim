@@ -4,6 +4,7 @@
 #include "Controller.hpp"
 #include "StartingPoints.hpp"
 #include "FireGraphics.hpp"
+#include "Results.hpp"
 
 namespace fsim
 {
@@ -27,7 +28,7 @@ namespace fsim
         void copy_node_pointers_to_node_data();
 
         // Generates fire graphics on the fire point
-        void generateFireGraphics(Node* fireSourceNode, sf::Texture* iconTexture);
+        void generateFireGraphics(Node* fireSourceNode, sf::Texture* iconTexture, const float& heatFluxValue);
                 
         // Getters
         sf::Vector2u clickPosition(sf::Vector2f worldPos) const;
@@ -43,10 +44,12 @@ namespace fsim
         void setTarget(Node* node);
 
     public:
-        std::unique_ptr<sf::VertexArray>   nodePositions;  // Stores vertex positions and colors of generated nodes
-        std::vector<fsim::StartingPoints*> startingPoints; // Stores starting point objects
-        std::vector<Node*>*                nodes;          // Vector pointer of pointer nodes
-        std::vector<Node*>                 exitNodes;      // Stores all the exits of a floor
+        std::unique_ptr<sf::VertexArray>   nodePositions;    // Stores vertex positions and colors of generated nodes
+        std::vector<fsim::StartingPoints*> startingPoints;   // Stores starting point objects
+        std::vector<FireGraphics>          fireGraphicsList; // Stores graphic fires
+        std::vector<Results>               results;
+        std::vector<Node*>*                nodes;            // Vector pointer of pointer nodes
+        std::vector<Node*>                 exitNodes;        // Stores all the exits of a floor
         
 
         sf::View mapView; // Map Camera/View
@@ -59,10 +62,10 @@ namespace fsim
         
 
     private:
-        std::vector<FireGraphics> fireGraphicsList;     // Stores graphic fires
-        std::vector<char>         nodeDatas;            // Stores the data of the floor map
-        uint32_t                  totalRows, totalCols; // Dimensions of the graph
-        float                     tileSize;             // Size of a single tile
+        std::vector<char> nodeDatas; // Stores the data of the floor map
+        uint32_t          totalRows; // Total rows of nodes of the board
+        uint32_t          totalCols; // Total rows os columns of the board
+        float             tileSize;  // Size of a single tile
 
         sf::Sprite  mapSprite;   // Map image or sprite
         std::string mapDataPath; // File path of texture

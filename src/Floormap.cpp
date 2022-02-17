@@ -215,9 +215,9 @@ namespace fsim
         }
     }
 
-    void Floormap::generateFireGraphics(Node* fireSourceNode, sf::Texture* iconTexture)
+    void Floormap::generateFireGraphics(Node* fireSourceNode, sf::Texture* iconTexture, const float& heatFluxValue)
     {
-        fireGraphicsList.push_back(FireGraphics(fireSourceNode, floor, iconTexture));
+        fireGraphicsList.push_back(FireGraphics(fireSourceNode, floor, iconTexture, heatFluxValue));
     }
 
     sf::Vector2u Floormap::clickPosition(sf::Vector2f worldPos) const
