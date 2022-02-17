@@ -57,6 +57,8 @@ namespace fsim
         uint32_t row; // Horizontal
         uint32_t col; // Vertical
 
+        float r, g;
+        float danger_indicator;
 
     private:
         // uint32_t row; // Horizontal
