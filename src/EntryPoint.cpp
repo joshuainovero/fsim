@@ -4,10 +4,13 @@
 #include "Floormap.hpp"
 #include "Controller.hpp"
 #include "Algorithms.hpp"
+#include "Constants.hpp"
+#include "Units.hpp"
 #include <iostream>
 #include <algorithm>
 #include <string>
 #include <math.h>
+#include <iomanip>
 
 // 30 feet = 9.144 meters
 // 1 box = 3.415 pixels/box
@@ -234,6 +237,8 @@ int main()
 {
     auto videoMode = sf::VideoMode::getDesktopMode();
     videoMode.height += 1;
+    // sf::ContextSettings settings;
+    // settings.antialiasingLevel = 4;
     sf::RenderWindow window(videoMode, "Window", sf::Style::None);
     bool imGuiInit = ImGui::SFML::Init(window);
 
@@ -273,34 +278,7 @@ int main()
     map = FloorMapObjects[currentEnumFloor];
     map->copy_node_data_to_node_pointers();
     loadMapTexture(*map, currentEnumFloor);
-
-    // map->nodes[100][200]->switchColor(sf::Color::Red);
-    // float pytha = std::sqrt(std::pow(map->nodes[201][101]->col - map->nodes[200][100]->col, 2.0f) + std::pow(map->nodes[201][101]->row - map->nodes[200][100]->row, 2));
-    // std::cout << pytha << std::endl;
-
-    // sf::CircleShape circle;
-    // circle.setRadius(56.32184847f);
-    // circle.setFillColor(sf::Color::Green);
-    // const float t_half_size = 3.415f/2.0f;
-    // circle.setPosition(sf::Vector2f(map->nodes[100][200]->x + t_half_size, map->nodes[100][200]->y + t_half_size));
-    // circle.setOrigin(sf::Vector2f(circle.getRadius(), circle.getRadius()));
-
-    // for (size_t i = 0; i < map->getTotalRows(); ++i)
-    // {
-    //     for (size_t k = map->minCols; k < map->maxCols; ++k)
-    //     {
-    //         if (map->nodes[i][k] != map->nodes[100][200])
-    //         {
-    //             // float pytha = std::sqrt(std::pow(map->nodes[100][200]->col - map->nodes[i][k]->col, 2.0f) + std::pow(map->nodes[100][200]->row - map->nodes[i][k]->row, 2.0f));
-    //             float pytha = std::sqrt(std::pow((float)map->nodes[100][200]->col - (float)map->nodes[i][k]->col, (float)2.0f) + std::pow((float)map->nodes[100][200]->row - (float)map->nodes[i][k]->row, (float)2.0f));
-    //             // 0.51225 - door
-    //             if (pytha * 0.5544342178f <= 9.144f)
-    //                 map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
-    //         }
-
-    //     }
-    // }
-    // map->initVertexArray();
+    fsim::units::changeMagnitudes(currentEnumFloor);
 
     sf::Texture fireIconTexture;
     fireIconTexture.loadFromFile("resource/FireIcon.png");
@@ -332,7 +310,6 @@ int main()
 
             map->drawMap(&window);
 
-            // window.draw(circle);
             window.draw(*map->nodePositions);
 
             for (auto startNode : map->startingPoints)
@@ -340,9 +317,6 @@ int main()
                 if (startNode->node != nullptr)
                     window.draw(startNode->point);
             }
-
-            // window.draw(sprite);
-            // window.draw(nigger);
 
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
             ImGui::Begin("MU Fire Escape Simulator");
@@ -417,35 +391,80 @@ int main()
                 {
                     ImGui::TableNextColumn(); ImGui::Text(startingPointsCString); 
                     ImGui::TableNextColumn(); 
-                    ImGui::Text("Ignition Points: 0");
+                    std::string labelIgnitionPoint = "Ignition Points: " + std::to_string(map->fireGraphicsList.size());
+                    ImGui::Text(labelIgnitionPoint.c_str());
                     ImGui::EndTable();
                 }
 
                 if (ImGui::Button("Visualize"))
                 {
+                    modifyNodes(*map, [](fsim::Node* node){ 
+                        node->updateNeighbors(map->nodes, map->minCols, map->maxCols); 
+                        node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+                    });
 
-                    modifyNodes(*map, [](fsim::Node* node){ node->updateNeighbors(map->nodes, map->minCols, map->maxCols); });
+                    map->results.clear();
 
+                    fsim::Algorithms::calculateRisk(map->nodes, map->fireGraphicsList, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols));
                     for (auto startNode : map->startingPoints)
                     {
-
                         if (startNode->node != nullptr)
                         {
                             exitsStored.clear();
-                            auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false);
-
+                            auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false, true);
+                            bool exit_node_within_previous_node = false;
                             for (auto exitNode : map->exitNodes)
                             {
                                 if (previous_nodes.find(exitNode) == previous_nodes.end())
+                                {
                                     continue;
-
-                                uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false);
+                                }
+                                else 
+                                    exit_node_within_previous_node = true;
+                                    
+                                uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false).node_count;
                                 exitsStored.push_back(std::make_pair(exitNode, nodeCount));
                             }
-                            auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
-                                                return left.second < right.second;});
-                            float finalCount = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true) - 1) * pixelDistance;
-                            std::cout << finalCount << std::endl;
+                            
+                            fsim::Results results;
+
+                            if (!exit_node_within_previous_node)
+                            {
+                                exitsStored.clear();
+                                auto previous_nodes = fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false, false);
+
+                                for (auto exitNode : map->exitNodes)
+                                {
+                                    if (previous_nodes.find(exitNode) == previous_nodes.end())
+                                        continue;
+                                    
+                                    uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false).node_count;
+                                    exitsStored.push_back(std::make_pair(exitNode,  nodeCount));
+                                }
+                                auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
+                                                    return left.second < right.second;});
+                                // boxCountDistance = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true).node_count - 1) * 0.5544342178f;
+                                results = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true));
+                            }
+                            else 
+                            {
+                                auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
+                                                    return left.second < right.second;});
+                                // boxCountDistance = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true)).node_count;
+                                results = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true));
+                                // boxCountDistance = (boxCountDistance != FSIM_NOPATHDIST) ? (boxCountDistance - 1) * 0.5544342178f : boxCountDistance;
+                            }
+
+                            // std::cout << boxCountDistance << std::endl;
+                            std::cout << "Distance traveled: " << results.distance_traveled << std::endl;
+                            std::cout << "Danger Indicator: " << results.danger_indicator_average << std::endl;
+                            std::cout << "Safe path proportion: " << results.safe_path_proportion << std::endl;
+                            std::cout << "Risky path proprtion: " << results.risky_path_proportion << std::endl << std::endl;
+
+                            map->results.push_back(results);
+                            map->results[map->results.size() - 1].point_name = startNode->buffer;
+                            // std::cout << "Obs: " << results.obstructions_count << " " << "node_counts: " << results.node_count << std::endl;
+
                         }
 
                     }
@@ -494,8 +513,8 @@ int main()
                         // Display headers so we can inspect their interaction with borders.
                         // (Headers are not the main purpose of this section of the demo, so we are not elaborating on them too much. See other sections for details)
 
-                            ImGui::TableSetupColumn("Starting Points");
-                            ImGui::TableHeadersRow();
+                        ImGui::TableSetupColumn("Starting Points");
+                        ImGui::TableHeadersRow();
 
                         for (size_t row = 0; row < map->startingPoints.size(); row++)
                         {
@@ -526,7 +545,7 @@ int main()
                                 {
                                     screenClickHandle = 0;
                                     modifyNodes(*map, [](fsim::Node* node) { 
-                                        if (node->obstruction == false)
+                                        // if (node->obstruction == false)
                                             node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); 
                                     });
 
@@ -573,16 +592,134 @@ int main()
                 }
                 if (ImGui::CollapsingHeader("Fire Sources"))
                 {
-                    ImGui::RadioButton("Manually add fire source", &screenClickHandle, 1);
+                    if (ImGui::BeginTable("CreateFireNodeTables", 2))
+                    {
+                        ImGui::TableNextColumn();
+                        ImGui::RadioButton("Add manually", &screenClickHandle, 1);
+                        ImGui::TableNextColumn(); 
+                        if (ImGui::Button("Auto generate"))
+                        {
+
+                        }
+                        ImGui::EndTable();
+                    }
+
                     ImGui::PushItemWidth(150.0f);
                     ImGui::SliderFloat("Heat Flux (kW/m2) ", &heatFluxValue, 0.0f, 300.0f);
+                    ImGui::Separator();
+                    if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+                    {
+                        ImGui::TableSetupColumn("Fire Points Table");
+                        ImGui::TableHeadersRow();
+
+                        for (size_t row = 0; row < map->fireGraphicsList.size(); ++row)
+                        {
+                            ImGui::TableNextRow();
+                            ImGui::TableSetColumnIndex(0);
+                            std::stringstream ssHeatFlux;
+                            ssHeatFlux << std::setprecision(5) << map->fireGraphicsList[row].heatFluxValue << " kW/m2";
+                            ImGui::Text(ssHeatFlux.str().c_str());
+                            ImGui::SameLine();
+                            if(ImGui::Button(("Locate##" + std::to_string(row)).c_str()))
+                            {
+                                if (map->fireGraphicsList[row].node != nullptr)
+                                {
+                                    map->mapView.setCenter(sf::Vector2f(map->fireGraphicsList[row].node->getWorldPos().x,
+                                    map->fireGraphicsList[row].node->getWorldPos().y));
+                                    map->mouseValue = 12;
+                                    map->mapView.setSize(sf::Vector2f(1366.0f * fsim::Controller::zoomValues[map->mouseValue], 
+                                    768.0f * fsim::Controller::zoomValues[map->mouseValue]));
+                                    window.setView(map->mapView);
+                                }
+                            }
+                            ImGui::SameLine();
+                            if(ImGui::Button(("Modify##" + std::to_string(row)).c_str()))
+                            {
+                            }
+                            ImGui::SameLine();
+                            if(ImGui::Button(("Delete##" + std::to_string(row)).c_str()))
+                            {
+                                if (map->fireGraphicsList[row].node != nullptr)
+                                {
+                                    fsim::Node* selectedNode = map->fireGraphicsList[row].node;
+                                    map->fireGraphicsList.erase(map->fireGraphicsList.begin() + row);
+                                    for (size_t i = 0; i < map->getTotalRows(); ++i)
+                                    {
+                                        for (size_t k = map->minCols; k < map->maxCols; ++k)
+                                        {
+                                            if (map->nodes[i][k] != selectedNode)
+                                            {
+                                                float distance = std::sqrt(std::pow((float)selectedNode->col - (float)map->nodes[i][k]->col, (float)2.0f) + std::pow((float)selectedNode->row - (float)map->nodes[i][k]->row, (float)2.0f));
+                                                if (distance * fsim::units::UNIT_DISTANCE <= fsim::units::STANDARD_HEAT_FLUX_RADIUS)
+                                                {
+                                                    // map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
+                                                    map->nodes[i][k]->obstruction = false;
+                                                    
+                                                }
+                                            }
+
+                                        }
+                                    }
+                                    map->initVertexArray();
+                                }
+                            }
+                        }
+
+                        ImGui::EndTable();
+                    }
+
+                }
+                if (ImGui::CollapsingHeader("Results"))
+                {
+                    if (ImGui::BeginTable("Resultstable1", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+                    {
+                        ImGui::TableSetupColumn("Point");
+                        ImGui::TableSetupColumn("D");
+                        ImGui::TableSetupColumn("I");
+                        ImGui::TableSetupColumn("Ps");
+                        ImGui::TableSetupColumn("Pd");
+                        ImGui::TableHeadersRow();
+
+                        std::stringstream ss;
+
+                        for (size_t row = 0; row < map->results.size(); ++row)
+                        {
+                            ImGui::TableNextRow();
+
+                            ImGui::TableSetColumnIndex(0);
+                            ImGui::Text(map->results[row].point_name.c_str());
+
+                            ImGui::TableSetColumnIndex(1);
+                            ss << std::setprecision(4) << map->results[row].distance_traveled << " m";
+                            ImGui::Text(ss.str().c_str());
+                            ss.str("");
+
+                            ImGui::TableSetColumnIndex(2);
+                            ss << std::setprecision(4) << map->results[row].danger_indicator_average;
+                            ImGui::Text(ss.str().c_str());
+                            ss.str("");
+
+                            ImGui::TableSetColumnIndex(3);
+                            ss << std::setprecision(4) << map->results[row].safe_path_proportion;
+                            ImGui::Text(ss.str().c_str());
+                            ss.str("");
+
+                            ImGui::TableSetColumnIndex(4);
+                            ss << std::setprecision(4) << map->results[row].risky_path_proportion;
+                            ImGui::Text(ss.str().c_str());
+                            ss.str("");
+                            
+                        }
+
+                        ImGui::EndTable();
+                    }
                 }
 
             }
 
-            if (ImGui::CollapsingHeader("Results"))
-            {
-            }
+            // if (ImGui::CollapsingHeader("Results"))
+            // {
+            // }
             
             if (modalModify == modifyPointState::CREATE)
                 displayModifyModal(modifyPointState::CREATE);
@@ -644,10 +781,11 @@ int main()
                         {
                             if (!mouseDown)
                             {
+                                modifyNodes(*map, [](fsim::Node* node) { node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); });
                                 sf::Vector2u position = map->clickPosition(worldPos);
                                 fsim::Node* selectedNode = map->nodes[position.x][position.y];
-                                selectedNode->switchColor(sf::Color(255, 70, 0, 255.0f));
-                                map->generateFireGraphics(selectedNode, &fireIconTexture);
+                                // selectedNode->switchColor(sf::Color(255, 70, 0, 255.0f));
+                                map->generateFireGraphics(selectedNode, &fireIconTexture, heatFluxValue);
                                 for (size_t i = 0; i < map->getTotalRows(); ++i)
                                 {
                                     for (size_t k = map->minCols; k < map->maxCols; ++k)
@@ -655,7 +793,7 @@ int main()
                                         if (map->nodes[i][k] != selectedNode)
                                         {
                                             float distance = std::sqrt(std::pow((float)selectedNode->col - (float)map->nodes[i][k]->col, (float)2.0f) + std::pow((float)selectedNode->row - (float)map->nodes[i][k]->row, (float)2.0f));
-                                            if (distance * 0.5544342178f <= 9.144f)
+                                            if (distance * fsim::units::UNIT_DISTANCE < fsim::units::STANDARD_HEAT_FLUX_RADIUS)
                                             {
                                                 // map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
                                                 map->nodes[i][k]->obstruction = true;
@@ -680,6 +818,9 @@ int main()
                 }
             }
 
+            if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
+                std::cout << "FUCKER: " << map->results[0].point_name.c_str() << std::endl;
+
             // if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
             // {
             //     // for (size_t i = 0; i < totalRows; ++i)
@@ -696,13 +837,7 @@ int main()
             //     {
             //         sf::Vector2u position = map->clickPosition(worldPos);
             //         fsim::Node* selectedNode = map->nodes[position.x][position.y];
-            //         selectedNode->switchColor(sf::Color::Magenta);
-            //         std::cout << "X2: " << map->nodes[100][200]->col << " " << "X2: " << selectedNode->col << std::endl;
-            //         std::cout << "Y1: " << map->nodes[100][200]->row << " " << "Y2: " << selectedNode->row << std::endl;
-            //         float pytha = std::sqrt(std::pow((float)map->nodes[100][200]->col - (float)selectedNode->col, (float)2.0f) + std::pow((float)map->nodes[100][200]->row - (float)selectedNode->row, (float)2.0f));
-            //         std::cout << "Distance : " << pytha * 0.415f << std::endl;
-            //         std::cout << "Orig: " << pytha << std::endl;
-            //         map->initVertexArray();
+            //         std::cout << selectedNode->riskValue << std::endl;
             //         mouseDown = true;
             //     }
             // } else mouseDown = false;
