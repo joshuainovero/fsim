@@ -13,7 +13,7 @@
 // Black and white -50% all
 
 // enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
-FloorLabel currentEnumFloor = FloorLabel::GROUND;
+FloorLabel currentEnumFloor = FloorLabel::THIRD;
 
 const std::vector<std::string> mapTexturePaths =
     { "resource/Ground-2160.png", "resource/2nd-2160.png", "resource/3rd-2160.png", "resource/4th-2160.png" };
@@ -183,20 +183,20 @@ int main()
                     }
                 }
 
-                auto previous_nodes =  fsim::Algorithms::dijkstra(map.getStart(), nullptr, map.nodes, map.getTotalRows(), std::make_pair(map.minCols, map.maxCols), false);
+                auto previous_nodes =  fsim::Algorithms::dijkstra(map.getStart(), nullptr, map.nodes, map.getTotalRows(), std::make_pair(map.minCols, map.maxCols), false, true);
 
                 for (auto exitNode : map.exitNodes)
                 {
                     if (previous_nodes.find(exitNode) == previous_nodes.end())
                         continue;
                         
-                    uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, map.getStart(), previous_nodes, false);
-                    exitsStored.push_back(std::make_pair(exitNode, nodeCount));
+                   fsim::Results results = fsim::Algorithms::reconstruct_path(exitNode, map.getStart(), previous_nodes, false);
+                    exitsStored.push_back(std::make_pair(exitNode, results.node_count));
 
                 }
                 auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
                                     return left.second < right.second;});
-                uint32_t finalCount = fsim::Algorithms::reconstruct_path(minExitNode.first, map.getStart(), previous_nodes, true);
+                fsim::Results results = fsim::Algorithms::reconstruct_path(minExitNode.first, map.getStart(), previous_nodes, true);
 
                 map.initVertexArray();
             }
