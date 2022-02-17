@@ -6,7 +6,7 @@ CFLAGS := -Wall
 # Objects
 DEBUG := Debugger.o
 RELEASE := EntryPoint.o
-SRCOBJS := Node.o Floormap.o Algorithms.o Controller.o StartingPoints.o FireGraphics.o
+SRCOBJS := Node.o Floormap.o Algorithms.o Controller.o StartingPoints.o FireGraphics.o Units.o
 IMGUIOBJS := imgui.o imgui_draw.o imgui_tables.o imgui_widgets.o imgui-SFML.o
 DEBUGOBJS := ${DEBUG} ${SRCOBJS} ${IMGUIOBJS}
 RELEASEOBJS := ${RELEASE} ${SRCOBJS} ${IMGUIOBJS}
@@ -54,6 +54,9 @@ StartingPoints.o: ${SRC}/StartingPoints.cpp
 	${CC} ${CFLAGS} ${INCLUDES} -c $<
 
 FireGraphics.o: ${SRC}/FireGraphics.cpp
+	${CC} ${CFLAGS} ${INCLUDES} -c $<
+
+Units.o: ${SRC}/Units.cpp
 	${CC} ${CFLAGS} ${INCLUDES} -c $<
 
 # ImGui
