@@ -4,7 +4,7 @@ namespace fsim
 {
     namespace Controller
     {
-        const std::vector<float> zoomValues { 1.0f, 0.95f, 0.90f, 0.85f, 0.80f, 0.75, 0.70, 0.65f, 0.60f, 0.55f, 0.50f, 0.45f, 0.40f, 0.35f, 0.30f };
+        const std::vector<float> zoomValues { 1.0f, 0.95f, 0.90f, 0.85f, 0.80f, 0.75, 0.70, 0.65f, 0.60f, 0.55f, 0.50f, 0.45f, 0.40f, 0.35f, 0.30f};
 
         // uint32_t mouseValue = 4;
 
