@@ -1,30 +1,28 @@
 #include "../vendor/imgui/imgui.h"
 #include "../vendor/imgui/imgui-SFML.h"
 #include <SFML/Graphics.hpp>
+#include <mailio/message.hpp>
+#include <mailio/smtp.hpp>
 #include "Floormap.hpp"
 #include "Controller.hpp"
 #include "Algorithms.hpp"
 #include "Constants.hpp"
 #include "Units.hpp"
+#include "Authenticate.hpp"
 #include <iostream>
 #include <algorithm>
 #include <string>
 #include <math.h>
 #include <iomanip>
+#include <time.h>
 
-// 30 feet = 9.144 meters
-// 1 box = 3.415 pixels/box
-// 1 box = 0.5544342178 meters/box
-// 9.144 meters in pixels = 56.32184847 pixels
 
 // States of the create/modify point modal
+
 enum modifyPointState { CREATE, MODIFY, NONE};
 
 // Current Map Pointer Object
 std::shared_ptr<fsim::Floormap> map;
-
-// Floor levels
-// enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
 
 // Current Floor Enum Level
 FloorLabel currentEnumFloor = FloorLabel::GROUND;
@@ -235,6 +233,14 @@ static void modifyNodes(fsim::Floormap& map, std::function<void(fsim::Node*)> op
 
 int main()
 {
+
+    srand(time(NULL));
+    bool authentication_success;
+    { authentication_success = fsim::app_authentication(); }
+
+    if (!authentication_success)
+        return 0;
+
     auto videoMode = sf::VideoMode::getDesktopMode();
     videoMode.height += 1;
     // sf::ContextSettings settings;
@@ -404,8 +410,9 @@ int main()
                     });
 
                     map->results.clear();
-
+                    std::cout << "1" << std::endl;
                     fsim::Algorithms::calculateRisk(map->nodes, map->fireGraphicsList, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols));
+                    std::cout << "2" << std::endl;
                     for (auto startNode : map->startingPoints)
                     {
                         if (startNode->node != nullptr)
@@ -443,19 +450,15 @@ int main()
                                 }
                                 auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
                                                     return left.second < right.second;});
-                                // boxCountDistance = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true).node_count - 1) * 0.5544342178f;
                                 results = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true));
                             }
                             else 
                             {
                                 auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
                                                     return left.second < right.second;});
-                                // boxCountDistance = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true)).node_count;
                                 results = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true));
-                                // boxCountDistance = (boxCountDistance != FSIM_NOPATHDIST) ? (boxCountDistance - 1) * 0.5544342178f : boxCountDistance;
                             }
 
-                            // std::cout << boxCountDistance << std::endl;
                             std::cout << "Distance traveled: " << results.distance_traveled << std::endl;
                             std::cout << "Danger Indicator: " << results.danger_indicator_average << std::endl;
                             std::cout << "Safe path proportion: " << results.safe_path_proportion << std::endl;
@@ -463,13 +466,11 @@ int main()
 
                             map->results.push_back(results);
                             map->results[map->results.size() - 1].point_name = startNode->buffer;
-                            // std::cout << "Obs: " << results.obstructions_count << " " << "node_counts: " << results.node_count << std::endl;
-
                         }
 
                     }
 
-
+                    std::cout << "3" << std::endl;
                     map->initVertexArray();
                 }
                 if (ImGui::CollapsingHeader("View Controls"))
@@ -510,9 +511,6 @@ int main()
                 {
                     if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
                     {
-                        // Display headers so we can inspect their interaction with borders.
-                        // (Headers are not the main purpose of this section of the demo, so we are not elaborating on them too much. See other sections for details)
-
                         ImGui::TableSetupColumn("Starting Points");
                         ImGui::TableHeadersRow();
 
@@ -576,9 +574,6 @@ int main()
                                  ImGui::SameLine();
                                 
                                 ImGui::ColorEdit4("", (float*)&(map->startingPoints[row]->point_rgba), ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_NoInputs);
-                                // ImGui::ColorPicker4("My Color", (float*)&(startingPoints[row]->point_rgba), misc_flags, NULL);
-                                // else if (contents_type)
-                                //     ImGui::Button(buf, ImVec2(-FLT_MIN, 0.0f));
                             }
                         }
 
@@ -643,6 +638,7 @@ int main()
                                 {
                                     fsim::Node* selectedNode = map->fireGraphicsList[row].node;
                                     map->fireGraphicsList.erase(map->fireGraphicsList.begin() + row);
+                                    map->nodeObstructionsList.erase(map->nodeObstructionsList.begin() + row);
                                     for (size_t i = 0; i < map->getTotalRows(); ++i)
                                     {
                                         for (size_t k = map->minCols; k < map->maxCols; ++k)
@@ -786,6 +782,7 @@ int main()
                                 fsim::Node* selectedNode = map->nodes[position.x][position.y];
                                 // selectedNode->switchColor(sf::Color(255, 70, 0, 255.0f));
                                 map->generateFireGraphics(selectedNode, &fireIconTexture, heatFluxValue);
+                                std::vector<fsim::Node*> nodeObstructions;
                                 for (size_t i = 0; i < map->getTotalRows(); ++i)
                                 {
                                     for (size_t k = map->minCols; k < map->maxCols; ++k)
@@ -797,12 +794,13 @@ int main()
                                             {
                                                 // map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
                                                 map->nodes[i][k]->obstruction = true;
-                                                
+                                                nodeObstructions.push_back(nodes[i][k]);
                                             }
                                         }
 
                                     }
                                 }
+                                map->nodeObstructionsList.push_back(nodeObstructions);
                                 map->initVertexArray();
                                 mouseDown = true;
                             }
@@ -823,29 +821,30 @@ int main()
 
             // if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
             // {
-            //     // for (size_t i = 0; i < totalRows; ++i)
-            //     // {
-            //     //     for (size_t k = 37; k < 359; ++k)
-            //     //     {
-            //     //         if (map->nodes[i][k]->type == fsim::NODETYPE::DefaultPath)
-            //     //             map->nodes[i][k]->switchColor(sf::Color::Blue);
-
-            //     //     }
-            //     // }
-            //     // map->initVertexArray();
-            //     if (!mouseDown)
+            //     for (size_t i = 0; i < totalRows; ++i)
             //     {
-            //         sf::Vector2u position = map->clickPosition(worldPos);
-            //         fsim::Node* selectedNode = map->nodes[position.x][position.y];
-            //         std::cout << selectedNode->riskValue << std::endl;
-            //         mouseDown = true;
+            //         for (size_t k = map->minCols; k < map->maxCols; ++k)
+            //         {
+            //             if (map->nodes[i][k]->type == fsim::NODETYPE::DefaultPath)
+            //                 map->nodes[i][k]->switchColor(sf::Color::Blue);
+
+            //         }
             //     }
+            //     map->initVertexArray();
+            //     // if (!mouseDown)
+            //     // {
+            //     //     sf::Vector2u position = map->clickPosition(worldPos);
+            //     //     fsim::Node* selectedNode = map->nodes[position.x][position.y];
+            //     //     std::cout << selectedNode->riskValue << std::endl;
+            //     //     mouseDown = true;
+            //     // }
             // } else mouseDown = false;
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
                 window.close();
-        
+    
     }
+
     ImGui::SFML::Shutdown();
     return 0;
 }
