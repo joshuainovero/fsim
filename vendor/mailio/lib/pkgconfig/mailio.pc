@@ -1,0 +1,13 @@
+prefix=C:/SpecialRepos/mailio/build/install
+exec_prefix=${prefix}
+libdir=C:/SpecialRepos/mailio/build/install/lib
+sharedlibdir=C:/SpecialRepos/mailio/build/install/lib
+includedir=C:/SpecialRepos/mailio/build/install/include/mailio
+
+Name: mailio
+Description: Cross-platform MIME library for SMTP, POP3, and IMAP protocols
+Version: 0.22.0
+Requires:
+Libs: -L${libdir} -L${sharedlibdir} -lmailio
+Cflags: -I${includedir}
+ 
