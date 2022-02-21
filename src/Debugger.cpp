@@ -13,7 +13,7 @@
 // Black and white -50% all
 
 // enum FloorLabel { GROUND = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
-FloorLabel currentEnumFloor = FloorLabel::THIRD;
+FloorLabel currentEnumFloor = FloorLabel::FOURTH;
 
 const std::vector<std::string> mapTexturePaths =
     { "resource/Ground-2160.png", "resource/2nd-2160.png", "resource/3rd-2160.png", "resource/4th-2160.png" };
