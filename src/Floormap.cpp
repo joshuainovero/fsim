@@ -12,7 +12,7 @@ namespace fsim
 
         tileSize = boardWidth / (float)totalCols;
         totalRows = std::ceil((float)768.0f / tileSize);
-
+        nodeDatas = new float[(maxCols - minCols) * totalRows];
         if (nodes_ == nullptr)
         {
             std::cout << "New" << std::endl;
@@ -50,17 +50,24 @@ namespace fsim
         else
         {
             nodes = nodes_;
+            uint32_t counter = 0;
             std::ifstream dataStream(mapDataPath);
                 for (size_t row_i = 0; row_i < totalRows; ++row_i)
                 {
+                    // for (size_t col_i = 0; col_i < totalCols; ++col_i)
+                    // {
                     for (size_t col_i = 0; col_i < totalCols; ++col_i)
                     {
-                        char state;
+                        float state;
                         dataStream >> state;
+                        // if (state == 1) std::cout << state << std::endl;
                         if (col_i >= minCols && col_i < maxCols)
                         {
-                            nodeDatas.push_back(state);
+                            // nodeDatas.push_back(state);
+                            nodeDatas[counter] = state;
+                            counter++;
                         }
+                        // counter++;
 
                     }
                 }
@@ -181,9 +188,11 @@ namespace fsim
                 if (nodes[row_i][col_i] != nullptr)
                 {
                     nodes[row_i][col_i]->reset();
-                    if (nodeDatas[counter] == '1')
+                    // if (nodeDatas[counter] == '1')
+                    if (nodeDatas[counter] == 1.0f)
                         nodes[row_i][col_i]->setDefaultPath();
-                    else if (nodeDatas[counter] == '2')
+                    // else if (nodeDatas[counter] == '2')
+                    else if (nodeDatas[counter] == 2.0f)
                     {
                         nodes[row_i][col_i]->setDefaultExit();
                         nodes[row_i][col_i]->exit = true;
@@ -193,11 +202,20 @@ namespace fsim
                 }
             }
         }
+
+        for (const auto& nodeObsSet : nodeObstructionsList)
+        {
+            for (const auto& nodeObstruction : nodeObsSet)
+                nodeObstruction->obstruction = true;
+        }
     }
 
     void Floormap::copy_node_pointers_to_node_data()
     {
-        nodeDatas.clear();
+        // nodeDatas.clear();
+        delete[] nodeDatas;
+        nodeDatas = new float[(maxCols - minCols) * totalRows];
+        uint32_t counter = 0;
         for (size_t row_i = 0; row_i < totalRows; ++row_i)
         {
             for (size_t col_i = minCols; col_i < maxCols; ++col_i)
@@ -205,11 +223,15 @@ namespace fsim
                 if (nodes[row_i][col_i] != nullptr)
                 {
                     if (nodes[row_i][col_i]->type == NODETYPE::DefaultPath && !nodes[row_i][col_i]->exit)
-                        nodeDatas.push_back('1');
+                        // nodeDatas.push_back('1');
+                        nodeDatas[counter] = 1.0f;
                     else if (nodes[row_i][col_i]->type == NODETYPE::DefaultPath && nodes[row_i][col_i]->exit)
-                        nodeDatas.push_back('2');
+                        // nodeDatas.push_back('2');
+                        nodeDatas[counter] = 2.0f;
                     else
-                        nodeDatas.push_back('0');
+                        // nodeDatas.push_back('0');
+                        nodeDatas[counter]= 0.0f;
+                    counter++;
                 }
             }
         }
