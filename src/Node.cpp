@@ -87,6 +87,7 @@ namespace fsim
         switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
         type = NODETYPE::None;
         exit = false;
+        obstruction = false;
     }
 
     sf::Vector2i Node::getPosition() const { return sf::Vector2i(row, col); }
