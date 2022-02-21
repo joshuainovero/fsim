@@ -24,6 +24,7 @@ namespace fsim
         // Gets the nearest node when mouse position is not at the valid node
         Node* bfsGetNearestStart(Node* selectedNode, std::vector<Node*>* tiles, const uint32_t& totalRows, const uint32_t& totalCols);
 
+        // Calculates the indicator risk of a node
         void calculateRisk(std::vector<Node*>* nodes, std::vector<FireGraphics>& fireGraphicsList, const uint32_t& totalRows, const std::pair<uint32_t, uint32_t>& cols);
     }
 }
