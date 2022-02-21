@@ -44,13 +44,13 @@ namespace fsim
         void setTarget(Node* node);
 
     public:
-        std::unique_ptr<sf::VertexArray>   nodePositions;    // Stores vertex positions and colors of generated nodes
-        std::vector<fsim::StartingPoints*> startingPoints;   // Stores starting point objects
-        std::vector<FireGraphics>          fireGraphicsList; // Stores graphic fires
-        std::vector<Results>               results;
-        std::vector<Node*>*                nodes;            // Vector pointer of pointer nodes
-        std::vector<Node*>                 exitNodes;        // Stores all the exits of a floor
-        
+        std::unique_ptr<sf::VertexArray>   nodePositions;        // Stores vertex positions and colors of generated nodes
+        std::vector<fsim::StartingPoints*> startingPoints;       // Stores starting point objects
+        std::vector<std::vector<Node*>>    nodeObstructionsList; // 2D vector of obstruction nodes
+        std::vector<FireGraphics>          fireGraphicsList;     // Stores graphic fires
+        std::vector<Results>               results;              // Statistical results
+        std::vector<Node*>*                nodes;                // Vector pointer of pointer nodes
+        std::vector<Node*>                 exitNodes;            // Stores all the exits of a floor        
 
         sf::View mapView; // Map Camera/View
 
@@ -62,7 +62,9 @@ namespace fsim
         
 
     private:
-        std::vector<char> nodeDatas; // Stores the data of the floor map
+        // std::vector<char> nodeDatas; // Stores the data of the floor map
+        float*             nodeDatas;
+
         uint32_t          totalRows; // Total rows of nodes of the board
         uint32_t          totalCols; // Total rows os columns of the board
         float             tileSize;  // Size of a single tile
