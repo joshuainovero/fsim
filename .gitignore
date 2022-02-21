@@ -6,6 +6,7 @@ mapdatabackups/
 resource/PDF/
 
 src/Authenticate.hpp
+floordata/floor1
 Notes.txt
 
 *.ini
