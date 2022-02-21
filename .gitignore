@@ -5,6 +5,9 @@ External/
 mapdatabackups/
 resource/PDF/
 
+src/Authenticate.hpp
+Notes.txt
+
 *.ini
 *.dll
 *.exe
