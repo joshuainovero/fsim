@@ -12,8 +12,17 @@ DEBUGOBJS := ${DEBUG} ${SRCOBJS} ${IMGUIOBJS}
 RELEASEOBJS := ${RELEASE} ${SRCOBJS} ${IMGUIOBJS}
 
 # Dependencies and Paths
-INCLUDES := -Ivendor/SFML/include -Ivendor/imgui
-LIBS := -Lvendor/SFML/lib -lsfml-window -lsfml-graphics -lsfml-system -lopengl32
+SFMLINCLUDE := -Ivendor/SFML/include
+IMGUIINCLUDE := -Ivendor/imgui
+SMTPINCLUDE := -Ivendor/mailio/include -IC:\OpenSSL-Win64\include -IC:\MinGW\include
+INCLUDES := ${SFMLINCLUDE} ${IMGUIINCLUDE} ${SMTPINCLUDE}
+
+SMTPLIBLOC = -Lvendor/mailio/lib -Lvendor/OpenSSL/lib -LC:\MinGW\lib -LD:\opensslbin\openssl-dev-1.0.2s-x86_64-win-mingw-w64\openssl\lib
+SFMLLIBLOC := -Lvendor/SFML/lib
+SMTPLIBS := -lmailio.dll -lws2_32 -lssl -lcrypto -lboost_regex -lwsock32 -lgdi32
+SFMLLIBS := -lsfml-window -lsfml-graphics -lsfml-system -lopengl32
+LIBS := ${SFMLLIBLOC} ${SMTPLIBLOC} ${SFMLLIBS} ${SMTPLIBS}
+
 SRC := src
 IMGUISRC := vendor/imgui
 
