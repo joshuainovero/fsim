@@ -817,7 +817,7 @@ int main()
             }
 
             if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
-                std::cout << "FUCKER: " << map->results[0].point_name.c_str() << std::endl;
+                // std::cout << "Test: " << map->results[0].point_name.c_str() << std::endl;
 
             // if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
             // {
