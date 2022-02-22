@@ -79,26 +79,26 @@ namespace fsim
 
         void dragEvent(sf::View& mapView, sf::RenderWindow* window)
         {
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
-        {
-            if (!mouseDown)
+            if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
             {
-                tempMousePosition = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
-                tempViewCenterPos = mapView.getCenter();
-                mouseDown = true;
-            }
-            mapView.setCenter(tempViewCenterPos.x, tempViewCenterPos.y);
-            window->setView(mapView);
-            float differenceX = window->mapPixelToCoords(sf::Mouse::getPosition(*window)).x - tempMousePosition.x;
-            float differenceY = window->mapPixelToCoords(sf::Mouse::getPosition(*window)).y - tempMousePosition.y;
-            mapView.setCenter(tempViewCenterPos.x - differenceX, tempViewCenterPos.y - differenceY);
-            window->setView(mapView);
-            autoAdjustView(mapView, window);
-            window->setView(mapView);
+                if (!mouseDown)
+                {
+                    tempMousePosition = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
+                    tempViewCenterPos = mapView.getCenter();
+                    mouseDown = true;
+                }
+                mapView.setCenter(tempViewCenterPos.x, tempViewCenterPos.y);
+                window->setView(mapView);
+                float delta_x = window->mapPixelToCoords(sf::Mouse::getPosition(*window)).x - tempMousePosition.x;
+                float delta_y = window->mapPixelToCoords(sf::Mouse::getPosition(*window)).y - tempMousePosition.y;
+                mapView.setCenter(tempViewCenterPos.x - delta_x, tempViewCenterPos.y - delta_y);
+                window->setView(mapView);
+                autoAdjustView(mapView, window);
+                window->setView(mapView);
 
-        }
-        else
-            mouseDown = false;
+            }
+            else
+                mouseDown = false;
         }
     }
 }
