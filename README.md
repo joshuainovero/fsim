@@ -9,5 +9,5 @@ Libraries:
 - ImGui 1.87.
 - ImGui-SFML 2.5.
 - OpenSSL 1.0.2t.
-- Mailio
+- Mailio (SMTP)
 - SFML 2.51.
