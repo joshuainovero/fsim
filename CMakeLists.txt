@@ -1,26 +1,28 @@
 cmake_minimum_required(VERSION 3.16.0)
 
-project(fsim)
+project(fsim VERSION 0.1.0)
 
 find_package(Boost REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 set(APP_FOLDER_TITLE MU_FES)
 
-link_directories(
-	${PROJECT_SOURCE_DIR}/vendor/SFML/lib
-	${PROJECT_SOURCE_DIR}/vendor/mailio/lib
-)
+set(APP_TITLE FireSimulator)
+set(APP_LIB_TITLE mufes)
+
+if(WIN32)
+	link_directories(${PROJECT_SOURCE_DIR}/vendor/SFML/lib)
+endif()
+
+link_directories(${PROJECT_SOURCE_DIR}/vendor/mailio/lib)
 
 include_directories(
 	${PROJECT_SOURCE_DIR}/vendor/SFML/include
 	${PROJECT_SOURCE_DIR}/vendor/imgui
 	${PROJECT_SOURCE_DIR}/vendor/mailio/include
-	${Boost_INCLUDE_DIR}
-	${OPENSSL_INCLUDE_DIR}
 )
 
-add_executable(fsim ${PROJECT_SOURCE_DIR}/src/EntryPoint.cpp)
+add_executable(${APP_TITLE} ${PROJECT_SOURCE_DIR}/src/EntryPoint.cpp)
 
 set(project_sources
 	${PROJECT_SOURCE_DIR}/src/Algorithms.cpp
@@ -50,27 +52,44 @@ set(project_headers
 	${PROJECT_SOURCE_DIR}/src/Units.hpp
 )
 
-add_library(fes_lib ${project_headers} ${project_sources})
+add_library(${APP_LIB_TITLE} SHARED ${project_headers} ${project_sources})
 
-target_link_libraries(
-	${PROJECT_NAME}
-	fes_lib
-	mailio.dll
-	sfml-window
-	sfml-graphics
-	sfml-system
-	wsock32 gdi32
-	opengl32
-	${OPENSSL_LIBRARIES}
-)
+target_link_libraries(${APP_LIB_TITLE} sfml-window sfml-graphics sfml-system)
 
-install(TARGETS fsim DESTINATION ${APP_FOLDER_TITLE})
+if(WIN32)
+	target_link_libraries(${APP_LIB_TITLE} mailio.dll ws2_32 opengl32)
+endif()
+
+if(Boost_FOUND)
+	target_include_directories(${APP_LIB_TITLE} PUBLIC ${Boost_INCLUDE_DIR})
+endif()
+
+if(OPENSSL_FOUND)
+	target_include_directories(${APP_LIB_TITLE} PUBLIC ${OPENSSL_INCLUDE_DIR})
+	target_link_libraries(${APP_LIB_TITLE} ${OPENSSL_LIBRARIES})
+endif()
+
+target_link_libraries(${APP_TITLE} ${APP_LIB_TITLE})
+
+install(TARGETS ${APP_TITLE} DESTINATION ${APP_FOLDER_TITLE})
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/resource/ DESTINATION ${APP_FOLDER_TITLE}/resource)
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/floordata/ DESTINATION  ${APP_FOLDER_TITLE}/floordata)
 
-install(FILES ${PROJECT_SOURCE_DIR}/libmailio.dll DESTINATION ${APP_FOLDER_TITLE})
-install(FILES ${PROJECT_SOURCE_DIR}/sfml-audio-2.dll DESTINATION ${APP_FOLDER_TITLE})
-install(FILES ${PROJECT_SOURCE_DIR}/sfml-graphics-2.dll DESTINATION ${APP_FOLDER_TITLE})
-install(FILES ${PROJECT_SOURCE_DIR}/sfml-window-2.dll DESTINATION ${APP_FOLDER_TITLE})
-install(FILES ${PROJECT_SOURCE_DIR}/sfml-system-2.dll DESTINATION ${APP_FOLDER_TITLE})
-install(FILES ${PROJECT_SOURCE_DIR}/sfml-network-2.dll DESTINATION ${APP_FOLDER_TITLE})
+if(WIN32)
+	install(FILES ${PROJECT_SOURCE_DIR}/sfml-audio-2.dll DESTINATION ${APP_FOLDER_TITLE})
+	install(FILES ${PROJECT_SOURCE_DIR}/sfml-graphics-2.dll DESTINATION ${APP_FOLDER_TITLE})
+	install(FILES ${PROJECT_SOURCE_DIR}/sfml-window-2.dll DESTINATION ${APP_FOLDER_TITLE})
+	install(FILES ${PROJECT_SOURCE_DIR}/sfml-system-2.dll DESTINATION ${APP_FOLDER_TITLE})
+	install(FILES ${PROJECT_SOURCE_DIR}/sfml-network-2.dll DESTINATION ${APP_FOLDER_TITLE})	
+endif()
+
+get_target_property(APP_LIB_TYPE ${APP_LIB_TITLE} TYPE)
+if(${APP_LIB_TYPE} STREQUAL SHARED_LIBRARY)
+	if (WIN32)
+		install(FILES ${PROJECT_SOURCE_DIR}/libmailio.dll DESTINATION ${APP_FOLDER_TITLE})
+		install(TARGETS ${APP_LIB_TITLE} DESTINATION ${APP_FOLDER_TITLE})
+	else()
+		install(FILES ${PROJECT_SOURCE_DIR}/libmailio.so DESTINATION ${APP_FOLDER_TITLE})
+		install(TARGETS ${APP_LIB_TITLE} DESTINATION ${APP_FOLDER_TITLE})
+	endif()
+endif()
