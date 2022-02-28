@@ -9,6 +9,7 @@ src/Authenticate.hpp
 floordata/floor1
 Notes.txt
 
+resource/*.png
 *.ini
 *.dll
 *.exe
