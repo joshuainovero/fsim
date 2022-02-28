@@ -17,11 +17,11 @@ IMGUIINCLUDE := -Ivendor/imgui
 SMTPINCLUDE := -Ivendor/mailio/include -IC:\OpenSSL-Win64\include -IC:\MinGW\include
 INCLUDES := ${SFMLINCLUDE} ${IMGUIINCLUDE} ${SMTPINCLUDE}
 
-SMTPLIBLOC = -Lvendor/mailio/lib -Lvendor/OpenSSL/lib -LC:\MinGW\lib -LD:\opensslbin\openssl-dev-1.0.2s-x86_64-win-mingw-w64\openssl\lib
+SMTPLIBLOC = -Lvendor/mailio/lib -Lvendor/OpenSSL/lib
 SFMLLIBLOC := -Lvendor/SFML/lib
 SMTPLIBS := -lmailio.dll -lws2_32 -lssl -lcrypto -lboost_regex -lwsock32 -lgdi32
 SFMLLIBS := -lsfml-window -lsfml-graphics -lsfml-system -lopengl32
-LIBS := ${SFMLLIBLOC} ${SMTPLIBLOC} ${SFMLLIBS} ${SMTPLIBS}
+LIBS := ${SFMLLIBLOC} ${SMTPLIBLOC} -Lsrc -lexternals ${SFMLLIBS} ${SMTPLIBS}
 
 SRC := src
 IMGUISRC := vendor/imgui
