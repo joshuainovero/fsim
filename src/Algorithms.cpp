@@ -205,17 +205,25 @@ namespace fsim
 
         Node* bfsGetNearestStart(Node* selectedNode, std::vector<Node*>* tiles, const uint32_t& totalRows, const uint32_t& totalCols)
         {
+            if (selectedNode->exit)
+                throw 50;
+
             std::unordered_map<Node*, bool> visited;
             std::queue<Node*> pQueue;
             pQueue.push(selectedNode);
             visited[selectedNode] = true;
+            uint32_t totalVisits = 0;
 
             while (!pQueue.empty())
             {
+                totalVisits++;
+                if (totalVisits > 1000)
+                    throw 50;
+
                 Node* currentNode = pQueue.front();
                 pQueue.pop();
 
-                if (currentNode->type == NODETYPE::DefaultPath)
+                if (currentNode->type == NODETYPE::DefaultPath && !currentNode->exit)
                     return currentNode;
 
                 sf::Vector2i nodePosition = currentNode->getPosition();
