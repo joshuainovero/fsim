@@ -8,7 +8,6 @@
 #include "Algorithms.hpp"
 #include "Constants.hpp"
 #include "Units.hpp"
-#include "Authenticate.hpp"
 #include <iostream>
 #include <algorithm>
 #include <string>
@@ -32,8 +31,10 @@ const std::vector<std::pair<uint32_t, std::string>> FloorLevels =
     { std::make_pair(1, "(Ground)"), std::make_pair(2, "(2nd)"), std::make_pair(3, "(3rd)"), std::make_pair(4, "(4th)") };
 
 // Map texture paths
+// const std::vector<std::string> mapTexturePaths =
+//     { "resource/Ground-2160.png", "resource/2nd-2160.png", "resource/3rd-2160.png", "resource/4th-2160.png" };
 const std::vector<std::string> mapTexturePaths =
-    { "resource/Ground-2160.png", "resource/2nd-2160.png", "resource/3rd-2160.png", "resource/4th-2160.png" };
+    { "resource/Ground-res", "resource/2nd-res", "resource/3rd-res", "resource/4th-res" };
 
 // Stores the current modal point state
 static modifyPointState modalModify = modifyPointState::NONE;
@@ -63,7 +64,9 @@ static bool floorChanged = true;
 static char floorCString[24];
 
 // General states
+static bool windowInFocus = true;
 static bool enableWASD = false;
+static bool safeRoute = true;
 static bool startPointMoving = false;
 static bool mouseOnImGui = false;
 static bool mouseDown = false;
@@ -85,6 +88,11 @@ ImGuiDemoMarkerCallback         GImGuiDemoMarkerCallback = NULL;
 void*                           GImGuiDemoMarkerCallbackUserData = NULL;
 #define IMGUI_DEMO_MARKER(section)  do { if (GImGuiDemoMarkerCallback != NULL) GImGuiDemoMarkerCallback(__FILE__, __LINE__, section, GImGuiDemoMarkerCallbackUserData); } while (0)
 
+namespace fsim 
+{ 
+    extern std::vector<char> getImageBuffer(const std::string& filename); 
+    extern bool app_authentication();
+}
 
 // Help marker
 static void HelpMarker(const char* desc)
@@ -214,8 +222,10 @@ static void loadMapTexture(fsim::Floormap& map, const FloorLabel& floor)
     if (currentMapTexture != nullptr)
         delete currentMapTexture;
     
+    auto buffer = fsim::getImageBuffer(mapTexturePaths[floor]);
     currentMapTexture = new sf::Texture();
-    currentMapTexture->loadFromFile(mapTexturePaths[floor]);
+    // currentMapTexture->loadFromFile(mapTexturePaths[floor]);
+    currentMapTexture->loadFromMemory(&buffer[0], buffer.size());
     currentMapTexture->setSmooth(true);
     map.setMapTexture(currentMapTexture);
 }
@@ -235,11 +245,11 @@ int main()
 {
 
     srand(time(NULL));
-    bool authentication_success;
-    { authentication_success = fsim::app_authentication(); }
+    // bool authentication_success;
+    // { authentication_success = fsim::app_authentication(); }
 
-    if (!authentication_success)
-        return 0;
+    // if (!authentication_success)
+    //     return 0;
 
     auto videoMode = sf::VideoMode::getDesktopMode();
     videoMode.height += 1;
@@ -304,10 +314,22 @@ int main()
             {
                 window.close();
             }
+            else if (event.type == sf::Event::GainedFocus)
+            {
+                windowInFocus = true;
+            }
+            else if (event.type == sf::Event::LostFocus)
+            {
+                windowInFocus = false;
+            }
             else if (event.type == sf::Event::MouseWheelMoved)
             {
-                if (modalModify == modifyPointState::NONE)
-                    fsim::Controller::zoomEvent(event.mouseWheel.delta, map->mapView, &window, map->mouseValue);
+                if (windowInFocus)
+                {
+                    if (modalModify == modifyPointState::NONE)
+                        fsim::Controller::zoomEvent(event.mouseWheel.delta, map->mapView, &window, map->mouseValue);
+                }
+
             }
         }
             ImGui::SFML::Update(window, deltaClock.restart());
@@ -323,9 +345,9 @@ int main()
                 if (startNode->node != nullptr)
                     window.draw(startNode->point);
             }
-
+            
             ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-            ImGui::Begin("MU Fire Escape Simulator");
+            ImGui::Begin("MU Fire Escape Simulator", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar);
             if (ImGui::CollapsingHeader("What is this?"))
             {
 
@@ -418,7 +440,7 @@ int main()
                         if (startNode->node != nullptr)
                         {
                             exitsStored.clear();
-                            auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false, true);
+                            auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false, safeRoute);
                             bool exit_node_within_previous_node = false;
                             for (auto exitNode : map->exitNodes)
                             {
@@ -473,6 +495,9 @@ int main()
                     std::cout << "3" << std::endl;
                     map->initVertexArray();
                 }
+
+                ImGui::Checkbox("Safe route", &safeRoute);
+
                 if (ImGui::CollapsingHeader("View Controls"))
                 {
                     if (ImGui::BeginTable("split", 2))
@@ -667,6 +692,14 @@ int main()
                 }
                 if (ImGui::CollapsingHeader("Results"))
                 {
+                    if (ImGui::BeginTable("someTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+                    {
+                        ImGui::TableSetupColumn(floorCString);
+                        std::string safeRouteStatus = (safeRoute) ? "Enabled" : "Disabled";
+                        ImGui::TableSetupColumn((std::string("Safe route: ") + safeRouteStatus).c_str());
+                        ImGui::TableHeadersRow();
+                        ImGui::EndTable();
+                    }
                     if (ImGui::BeginTable("Resultstable1", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
                     {
                         ImGui::TableSetupColumn("Point");
@@ -734,20 +767,28 @@ int main()
                 startingPointTemp->point.setPosition(sf::Vector2f(worldPos.x, worldPos.y));
                 window.draw(startingPointTemp->point);
 
-                if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+                if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && windowInFocus)
                 {
                     if (!mouseDown){
-                        sf::Vector2u position = map->clickPosition(worldPos);
-                        fsim::Node* selectedNode = map->nodes[position.x][position.y];
-                        fsim::Node* calculatedSelectedNode = fsim::Algorithms::bfsGetNearestStart(selectedNode, map->nodes, map->getTotalRows(), map->getTotalCols());
-                        startingPointTemp->node = calculatedSelectedNode;
-
-                        startingPointTemp->point.setPosition(sf::Vector2f(startingPointTemp->node->getWorldPos().x + (startingPointTemp->node->getTileSize()/2.0f), 
-                        startingPointTemp->node->getWorldPos().y + (startingPointTemp->node->getTileSize()/2.0f)));
-
-                        startPointMoving = false;
-                        startingPointTemp = nullptr;
                         mouseDown = true;
+                        try
+                        {
+                            sf::Vector2u position = map->clickPosition(worldPos);
+                            fsim::Node* selectedNode = map->nodes[position.x][position.y];
+                            fsim::Node* calculatedSelectedNode = fsim::Algorithms::bfsGetNearestStart(selectedNode, map->nodes, map->getTotalRows(), map->getTotalCols());
+                            startingPointTemp->node = calculatedSelectedNode;
+
+                            startingPointTemp->point.setPosition(sf::Vector2f(startingPointTemp->node->getWorldPos().x + (startingPointTemp->node->getTileSize()/2.0f), 
+                            startingPointTemp->node->getWorldPos().y + (startingPointTemp->node->getTileSize()/2.0f)));
+
+                            startPointMoving = false;
+                            startingPointTemp = nullptr;
+                        }
+                        catch (int excep__)
+                        {
+                            std::cout << "Exceeded" << std::endl;
+                        }
+
                     } 
                 }
                 else mouseDown = false;
@@ -768,12 +809,12 @@ int main()
                     }
 
 
-                    if (screenClickHandle == 0)
+                    if (screenClickHandle == 0 && windowInFocus)
                         fsim::Controller::dragEvent(map->mapView, &window);
 
                     else if (screenClickHandle == 1)
                     {
-                        if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+                        if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && windowInFocus)
                         {
                             if (!mouseDown)
                             {
@@ -809,14 +850,14 @@ int main()
                 }
                 else
                 {
-                    if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+                    if (sf::Mouse::isButtonPressed(sf::Mouse::Left) && windowInFocus)
                     {
                         mouseOnImGui = true;
                     }
                 }
             }
 
-            if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
+            // if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
                 // std::cout << "Test: " << map->results[0].point_name.c_str() << std::endl;
 
             // if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
@@ -840,8 +881,8 @@ int main()
             //     // }
             // } else mouseDown = false;
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
-                window.close();
+            // if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+            //     window.close();
     
     }
 
