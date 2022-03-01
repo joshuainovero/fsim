@@ -1,5 +1,6 @@
 #include "../vendor/imgui/imgui.h"
 #include "../vendor/imgui/imgui-SFML.h"
+#include "../vendor/imgui-dialog/lib/ImGuiFileDialog.h"
 #include <SFML/Graphics.hpp>
 #include <mailio/message.hpp>
 #include <mailio/smtp.hpp>
@@ -8,6 +9,7 @@
 #include "Algorithms.hpp"
 #include "Constants.hpp"
 #include "Units.hpp"
+#include "Filehandler.hpp"
 #include <iostream>
 #include <algorithm>
 #include <string>
@@ -15,6 +17,11 @@
 #include <iomanip>
 #include <time.h>
 
+static std::string currentFileName = "no file loaded";
+static bool fileDialogOpen = false;
+std::string tempPath;
+std::string dialogType;
+bool manipulateFile = false;
 
 // States of the create/modify point modal
 
@@ -58,7 +65,7 @@ sf::Texture* currentMapTexture = nullptr;
 static const float pixelDistance = 0.4878571428f;
 
 // States to avoid creating c strings every loop to display current loop
-static bool startingPointsChanged = true;
+bool startingPointsChanged = true;
 static char startingPointsCString[19];
 static bool floorChanged = true;
 static char floorCString[24];
@@ -217,6 +224,7 @@ static void displayModifyModal(const modifyPointState& state)
     }
 }
 
+
 static void loadMapTexture(fsim::Floormap& map, const FloorLabel& floor)
 {
     if (currentMapTexture != nullptr)
@@ -260,8 +268,10 @@ int main()
 
     if (imGuiInit)
         std::cout << "ImGui Success!" << std::endl;
-
+    ImVec4 defaultWindowColor = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+    defaultWindowColor.w = 1.0f;
     ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, defaultWindowColor);
 
     sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height), videoMode.height);
 
@@ -359,6 +369,19 @@ int main()
 
             if (ImGui::CollapsingHeader("Simulator"))
             {
+                if (fileDialogOpen)
+                {
+                    fsim::file::ImGuiOpenFileDialog(fileDialogOpen, tempPath, manipulateFile);
+                }
+
+                if (manipulateFile)
+                {
+                    if (dialogType == "save")
+                        fsim::file::saveFile(FloorMapObjects, tempPath);
+                    else if (dialogType == "load")
+                        fsim::file::loadFile(FloorMapObjects, tempPath, fireIconTexture, currentEnumFloor);
+                    manipulateFile = false;
+                }
                 if (startingPointsChanged)
                 {
                     strcpy(startingPointsCString, (std::string("Starting Points: ") + std::string(std::to_string(map->startingPoints.size()))).c_str());
@@ -370,6 +393,21 @@ int main()
                     strcpy(floorCString, (std::string("Floor Level: ") + std::string(std::to_string(currentLevel.first)) + " " + std::string(currentLevel.second)).c_str());
                     floorChanged = false;
                 }
+                ImGui::Text("File data: no file loaded");
+                if (ImGui::Button("Load file"))
+                {
+                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".sim", ".");
+                    dialogType = "load";
+                    fileDialogOpen = true;
+                } 
+                ImGui::SameLine();
+                if (ImGui::Button("Save file"))
+                {
+                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Save file", ".sim", ".");
+                    dialogType = "save";
+                    fileDialogOpen = true;
+                }
+                ImGui::Separator();
                 ImGui::Text(floorCString); ImGui::SameLine();
 
                 if (ImGui::Button("Up"))
@@ -580,7 +618,7 @@ int main()
                                         map->startingPoints[row]->point_rgba.w * 255.0f)
                                     );
                                     map->startingPoints[row]->point.setFillColor(color);
-
+                                    std::cout <<  map->startingPoints[row]->point_rgba.x << std::endl;
                                     startPointMoving = true;
                                     startingPointTemp = map->startingPoints[row];
                                     enableWASD = true;
@@ -835,7 +873,7 @@ int main()
                                             {
                                                 // map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
                                                 map->nodes[i][k]->obstruction = true;
-                                                nodeObstructions.push_back(nodes[i][k]);
+                                                nodeObstructions.push_back(map->nodes[i][k]);
                                             }
                                         }
 
