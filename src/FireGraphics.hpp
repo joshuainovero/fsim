@@ -17,7 +17,7 @@ namespace fsim
         void draw(sf::RenderWindow* window);
 
     public:
-        Node* node; // Fire point node
+        Node* node = nullptr; // Fire point node
         float heatFluxValue;
 
     private:
