@@ -89,6 +89,7 @@ namespace fsim
                 for (const auto& s_point : map->startingPoints)
                 {
                     Json::Value singleStartValue;
+                    singleStartValue["point-name"] = std::string(s_point->buffer);
                     if (s_point->node != nullptr)
                         singleStartValue["grid-pos"] = createArray<uint32_t>(s_point->node->row, s_point->node->col);
                     else
@@ -177,6 +178,7 @@ namespace fsim
                     std::vector<uint32_t> rowcol;
                     std::vector<float> rgbaVec;
 
+                    strcpy(tempStartingPoint->buffer, start["point-name"].asString().c_str());
                     if (start["grid-pos"].isArray())
                     {
                          for (const auto& gridValues : start["grid-pos"])
