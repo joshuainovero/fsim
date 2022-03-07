@@ -9,11 +9,11 @@ src/Authenticate.hpp
 floordata/floor1
 Notes.txt
 
-resource/*.png
 *.ini
 *.dll
 *.exe
 *.ini
+*.zip
 
 # CMake files
 CMakeLists.txt.user
