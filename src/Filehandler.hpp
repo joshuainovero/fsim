@@ -1,5 +1,6 @@
 #pragma once
 #include <json/json.h>
+#include <SFML/Graphics.hpp>
 #include <fstream>
 #include <string>
 #include <cstring>
@@ -7,6 +8,7 @@
 #include "Floormap.hpp"
 
 extern bool startingPointsChanged;
+extern sf::Texture targetIconTexture;
 
 namespace fsim
 {
@@ -50,7 +52,7 @@ namespace fsim
                     filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
                     std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
                     std::replace(filePathName.begin(), filePathName.end(), '\\', '/');
-                    std::cout << filePathName << std::endl;
+                    //std::cout << filePathName << std::endl;
                     fileDialogOpen = false;
                     manipulateFile = true;
                 // action
@@ -120,7 +122,7 @@ namespace fsim
         inline void loadFile(const std::vector<std::shared_ptr<fsim::Floormap>>& FloorMapObjects, const std::string& path, sf::Texture& fireIconTexture, FloorLabel currentEnumFloor)
         {
             startingPointsChanged = true;
-            std::cout << "HI!" << std::endl;
+            // std::cout << "HI!" << std::endl;
             std::ifstream fileStreamJSON(path);
             Json::Value data;
             Json::Reader reader;
@@ -171,7 +173,7 @@ namespace fsim
                 
                 for (const auto& start : floorData["starting-points"])
                 {
-                    fsim::StartingPoints* tempStartingPoint = new fsim::StartingPoints();
+                    fsim::StartingPoints* tempStartingPoint = new fsim::StartingPoints(&targetIconTexture);
                     std::vector<uint32_t> rowcol;
                     std::vector<float> rgbaVec;
 
