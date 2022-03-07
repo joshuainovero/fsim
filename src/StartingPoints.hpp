@@ -9,12 +9,13 @@ namespace fsim
 {
     struct StartingPoints
     {
-        StartingPoints();
+        StartingPoints(sf::Texture* targetTexture);
         ~StartingPoints();
 
-        sf::CircleShape point;      // Point circle UI
-        std::string     label;      // Label of a point
-        ImVec4          point_rgba; // RGBA values of a point
+        sf::Sprite      targetSprite; // sprite of the target location
+        sf::CircleShape point;        // Point circle UI
+        std::string     label;        // Label of a point
+        ImVec4          point_rgba;   // RGBA values of a point
 
         Node* node = nullptr; // Node pointer
 
