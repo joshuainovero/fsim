@@ -33,7 +33,6 @@ namespace fsim
                 mapPixelCoords.y >= iconRangeCoords[i].y1 && mapPixelCoords.y <= iconRangeCoords[i].y2
             )
             {
-                std::cout << "Shit" << std::endl;
                 toolSelectedBar.setPosition(sf::Vector2f(0.0f, (s_pos.y + (toolGap/2.0f)) + (toolSelectedBar.getSize().y * (float)i)        ));   
                 break;  
             }
