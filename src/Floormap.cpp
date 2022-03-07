@@ -72,7 +72,7 @@ namespace fsim
                     }
                 }
             dataStream.close();
-            std::cout << "Copied" << std::endl;
+            // std::cout << "Copied" << std::endl;
         }
 
         nodePositions = std::make_unique<sf::VertexArray>(sf::Quads, (totalRows * (maxCols - minCols)) * 4);
