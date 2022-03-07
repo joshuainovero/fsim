@@ -21,6 +21,12 @@
 #include <thread>
 #include <Windows.h>
 
+// Panel visibility states
+static bool logPanelState = true;
+static bool rightPanelState = true;
+static bool toolBarState = true;
+
+// simulator log utilities
 static bool addNewLogs = false;
 static std::string logMsg;
 static void pushLogMessage(const std::string& msg, const std::string& log_type)
@@ -140,6 +146,7 @@ struct AppLog
     }
 };
 
+// File handling vars
 static std::string currentFileName = "no file loaded";
 static bool fileDialogOpen = false;
 std::string tempPath;
@@ -150,7 +157,6 @@ sf::Texture targetIconTexture;
 
 
 // States of the create/modify point modal
-
 enum modifyPointState { CREATE, MODIFY, NONE};
 
 // Current Map Pointer Object
@@ -174,9 +180,6 @@ static modifyPointState modalModify = modifyPointState::NONE;
 
 // current floor label
 std::pair<uint32_t, std::string> currentLevel = FloorLevels[currentEnumFloor];
-
-// Holds all starting points that are dynamically created
-// static std::vector<fsim::StartingPoints*> startingPoints;
 
 // Calculated paths of all the exits in a given node
 static std::vector<std::pair<fsim::Node*, uint32_t>> exitsStored;
@@ -376,7 +379,7 @@ static void modifyNodes(fsim::Floormap& map, std::function<void(fsim::Node*)> op
     }
 }
 
-static void ShowExampleMenuFile(sf::RenderWindow* window)
+static void ShowMenuFile(sf::RenderWindow* window)
 {
     ImGui::MenuItem("(File menu)", NULL, false, false);
     if (ImGui::MenuItem("New")) {}
@@ -392,7 +395,7 @@ static void ShowExampleMenuFile(sf::RenderWindow* window)
             ImGui::MenuItem("Sailor");
             if (ImGui::BeginMenu("Recurse.."))
             {
-                ShowExampleMenuFile(window);
+                ShowMenuFile(window);
                 ImGui::EndMenu();
             }
             ImGui::EndMenu();
@@ -434,9 +437,6 @@ static void ShowExampleMenuFile(sf::RenderWindow* window)
         ImGui::EndMenu();
     }
 
-    // Here we demonstrate appending again to the "Options" menu (which we already created above)
-    // Of course in this demo it is a little bit silly that this function calls BeginMenu("Options") twice.
-    // In a real code-base using it would make senses to use this feature from very different code locations.
     if (ImGui::BeginMenu("Options")) // <-- Append!
     {
         static bool b = true;
@@ -452,13 +452,13 @@ static void ShowExampleMenuFile(sf::RenderWindow* window)
     if (ImGui::MenuItem("Quit", "Alt+F4")) { window->close(); }
 }
 
-static void ShowExampleAppMainMenuBar(sf::RenderWindow* window)
+static void ShowAppMainMenuBar(sf::RenderWindow* window)
 {
     if (ImGui::BeginMainMenuBar())
     {
         if (ImGui::BeginMenu("File"))
         {
-            ShowExampleMenuFile(window);
+            ShowMenuFile(window);
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Edit"))
@@ -475,6 +475,32 @@ static void ShowExampleAppMainMenuBar(sf::RenderWindow* window)
         {
             if (ImGui::MenuItem("Theme", "White")) {}
 
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("View"))
+        {
+
+            if (ImGui::MenuItem("Toggle log console", (logPanelState == true) ? "Enabled" : "Disabled"))
+            {
+                if (logPanelState == true)
+                    logPanelState = false;
+                else
+                    logPanelState = true;
+            }
+            if (ImGui::MenuItem("Toggle right panel", (rightPanelState == true) ? "Enabled" : "Disabled"))
+            {
+                if (rightPanelState == true)
+                    rightPanelState = false;
+                else
+                    rightPanelState = true;
+            }
+            if (ImGui::MenuItem("Toggle toolbar", (toolBarState == true) ? "Enabled" : " Disabled"))
+            {
+                if (toolBarState == true)
+                    toolBarState = false;
+                else
+                    toolBarState = true;
+            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -563,19 +589,14 @@ static void startPathFinding()
 
 static bool callPathfinding = false;
 
-static void logListener(sf::RenderWindow* window)
+static void logListener()
 {
-    while (window->isOpen())
-    {
-        if (callPathfinding)
-        {
-            // std::cout << "Called pathfinding" << std::endl;
-            startPathFinding();
-            pushLogMessage("Displaying all paths for floor " + std::to_string((int)currentEnumFloor), "Information");
-            callPathfinding = false;
-        }
-    }
+    callPathfinding = true;
+    startPathFinding();
+    pushLogMessage("Displaying all paths for floor " + std::to_string((int)currentEnumFloor), "Information");
+    callPathfinding = false;
 }
+
 
 int main()
 {
@@ -589,11 +610,12 @@ int main()
 
     auto videoMode = sf::VideoMode::getDesktopMode();
     videoMode.height += 1;
-    // sf::ContextSettings settings;
-    // settings.antialiasingLevel = 4;
+    sf::ContextSettings settings;
+    settings.antialiasingLevel = 1;
     
-    sf::RenderWindow window(videoMode, "Window", sf::Style::None);
-    std::thread LogThread(logListener, &window);
+    sf::RenderWindow window(videoMode, "Window", sf::Style::None, settings);
+    window.setFramerateLimit(60);
+    sf::Thread LogThread(&logListener);
     bool imGuiInit = ImGui::SFML::Init(window);
 
     ImVec4 defaultWindowColor = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
@@ -719,186 +741,278 @@ int main()
                 }
             }
             
-            ImGui::SetNextWindowPos(rightPanelPos, ImGuiCond_Always);
-            ImGui::SetNextWindowSize(rightPanelSize, ImGuiCond_Always);
-            ImGui::Begin("MU Fire Escape Simulator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-            // ImGui::BeginChild("bitchr", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollba);
-            if (ImGui::CollapsingHeader("What is this?"))
+            if (rightPanelState)
             {
-
-            }
-
-            if (ImGui::CollapsingHeader("Help"))
-            {
-            }
-
-            if (ImGui::CollapsingHeader("Simulator"), ImGuiTreeNodeFlags_DefaultOpen)
-            {
-                if (fileDialogOpen)
+                ImGui::SetNextWindowPos(rightPanelPos, ImGuiCond_Always);
+                ImGui::SetNextWindowSize(rightPanelSize, ImGuiCond_Always);
+                ImGui::Begin("MU Fire Escape Simulator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+                // ImGui::BeginChild("bitchr", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollba);
+                if (ImGui::CollapsingHeader("What is this?"))
                 {
-                    fsim::file::ImGuiOpenFileDialog(fileDialogOpen, tempPath, manipulateFile);
+
                 }
 
-                if (manipulateFile)
+                if (ImGui::CollapsingHeader("Help"))
                 {
-                    if (dialogType == "save")
-                        fsim::file::saveFile(FloorMapObjects, tempPath);
-                    else if (dialogType == "load")
-                        fsim::file::loadFile(FloorMapObjects, tempPath, fireIconTexture, currentEnumFloor);
-                    manipulateFile = false;
-                }
-                if (startingPointsChanged)
-                {
-                    strcpy(startingPointsCString, (std::string("Starting Points: ") + std::string(std::to_string(map->startingPoints.size()))).c_str());
-                    startingPointsChanged = false;
                 }
 
-                if (floorChanged)
+                if (ImGui::CollapsingHeader("Simulator"), ImGuiTreeNodeFlags_DefaultOpen)
                 {
-                    strcpy(floorCString, (std::string("Floor Level: ") + std::string(std::to_string(currentLevel.first)) + " " + std::string(currentLevel.second)).c_str());
-                    floorChanged = false;
-                }
-                //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-                if (tempPath.empty())
-                    ImGui::Text("File data: no file loaded");
-                else
-                    ImGui::Text(std::string("File data: " + tempPath).c_str());
-
-                //ImGui::PopStyleColor();
-                if (ImGui::Button("Load file"))
-                {
-                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".sim", ".");
-                    dialogType = "load";
-                    fileDialogOpen = true;
-                } 
-                ImGui::SameLine();
-                if (ImGui::Button("Save file"))
-                {
-                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Save file", ".sim", ".");
-                    dialogType = "save";
-                    fileDialogOpen = true;
-                }
-                ImGui::Separator();
-                ImGui::Text(floorCString); ImGui::SameLine();
-
-                if (ImGui::Button("Up"))
-                {
-                    if ((FloorLabel)(currentEnumFloor + 1) != FloorLabel::GROUND && 
-                        (FloorLabel)(currentEnumFloor + 1) != FloorLabel::SECOND &&
-                        (FloorLabel)(currentEnumFloor + 1) != FloorLabel::THIRD  &&
-                        (FloorLabel)(currentEnumFloor + 1) != FloorLabel::FOURTH)
+                    if (fileDialogOpen)
                     {
-                        ImGui::End();
-                        ImGui::SFML::Render(window);
-                        continue;
+                        fsim::file::ImGuiOpenFileDialog(fileDialogOpen, tempPath, manipulateFile);
                     }
-                    currentLevel = FloorLevels[(FloorLabel)(currentEnumFloor + 1)];
-                    currentEnumFloor = (FloorLabel)(currentEnumFloor + 1);
-                    map = FloorMapObjects[currentEnumFloor];
-                    map->copy_node_data_to_node_pointers();
-                    loadMapTexture(*map, currentEnumFloor);
-                    strcpy(startingPointsCString, (std::string("Starting Points: ") + std::string(std::to_string(map->startingPoints.size()))).c_str());
-                    floorChanged = true;
-                }
-                ImGui::SameLine();
 
-                if(ImGui::Button("Down"))
-                {
-                    if ((FloorLabel)(currentEnumFloor - 1) != FloorLabel::GROUND && 
-                        (FloorLabel)(currentEnumFloor - 1) != FloorLabel::SECOND &&
-                        (FloorLabel)(currentEnumFloor - 1) != FloorLabel::THIRD  &&
-                        (FloorLabel)(currentEnumFloor - 1) != FloorLabel::FOURTH)
+                    if (manipulateFile)
                     {
-                        ImGui::End();
-                        ImGui::SFML::Render(window);
-                        continue;
+                        if (dialogType == "save")
+                            fsim::file::saveFile(FloorMapObjects, tempPath);
+                        else if (dialogType == "load")
+                            fsim::file::loadFile(FloorMapObjects, tempPath, fireIconTexture, currentEnumFloor);
+                        manipulateFile = false;
                     }
-                    currentLevel = FloorLevels[(FloorLabel)(currentEnumFloor - 1)];
-                    currentEnumFloor = (FloorLabel)(currentEnumFloor - 1);
-                    map = FloorMapObjects[currentEnumFloor];
-                    map->copy_node_data_to_node_pointers();
-                    loadMapTexture(*map, currentEnumFloor);
-                    strcpy(startingPointsCString, (std::string("Starting Points: ") + std::string(std::to_string(map->startingPoints.size()))).c_str());
-                    floorChanged = true; 
-                }
-                
-                ImGui::Separator();
-
-                if (ImGui::BeginTable("PointsTable", 2))
-                {
-                    ImGui::TableNextColumn(); ImGui::Text(startingPointsCString); 
-                    ImGui::TableNextColumn(); 
-                    std::string labelIgnitionPoint = "Ignition Points: " + std::to_string(map->fireGraphicsList.size());
-                    ImGui::Text(labelIgnitionPoint.c_str());
-                    ImGui::EndTable();
-                }
-
-                if (ImGui::Button("Visualize"))
-                {
-                    callPathfinding= true;
-                }
-
-                ImGui::Checkbox("Safe route", &safeRoute);
-
-                if (ImGui::CollapsingHeader("View Controls"), ImGuiTreeNodeFlags_DefaultOpen)
-                {
-                    if (ImGui::BeginTable("split", 2))
+                    if (startingPointsChanged)
                     {
-                        ImGui::TableNextColumn(); ImGui::Checkbox("WASD Movement", &enableWASD); 
-                        ImGui::TableNextColumn(); 
+                        strcpy(startingPointsCString, (std::string("Starting Points: ") + std::string(std::to_string(map->startingPoints.size()))).c_str());
+                        startingPointsChanged = false;
+                    }
 
-                        ImGui::RadioButton("Navigate", &screenClickHandle, 0);
- 
-                        ImGui::EndTable();
+                    if (floorChanged)
+                    {
+                        strcpy(floorCString, (std::string("Floor Level: ") + std::string(std::to_string(currentLevel.first)) + " " + std::string(currentLevel.second)).c_str());
+                        floorChanged = false;
+                    }
+                    //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+                    if (tempPath.empty())
+                        ImGui::Text("File data: no file loaded");
+                    else
+                        ImGui::Text(std::string("File data: " + tempPath).c_str());
+
+                    //ImGui::PopStyleColor();
+                    if (ImGui::Button("Load file"))
+                    {
+                        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".sim", ".");
+                        dialogType = "load";
+                        fileDialogOpen = true;
+                    } 
+                    ImGui::SameLine();
+                    if (ImGui::Button("Save file"))
+                    {
+                        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Save file", ".sim", ".");
+                        dialogType = "save";
+                        fileDialogOpen = true;
                     }
                     ImGui::Separator();
+                    ImGui::Text(floorCString); ImGui::SameLine();
 
-                    float ratio = ((float)map->mouseValue) / (fsim::Controller::zoomValues.size() - 1.0f);
-                    int percent = ratio * 100.0f;
-
-                    std::string zoomPercentage = "Zoom: " + std::to_string(percent) + " %%";
-                    ImGui::Text(zoomPercentage.c_str()); ImGui::SameLine();
-                    if (ImGui::Button("+"))
+                    if (ImGui::Button("Up"))
                     {
-                        if (map->mouseValue < fsim::Controller::zoomValues.size() - 1)
+                        if ((FloorLabel)(currentEnumFloor + 1) != FloorLabel::GROUND && 
+                            (FloorLabel)(currentEnumFloor + 1) != FloorLabel::SECOND &&
+                            (FloorLabel)(currentEnumFloor + 1) != FloorLabel::THIRD  &&
+                            (FloorLabel)(currentEnumFloor + 1) != FloorLabel::FOURTH)
                         {
-                            fsim::Controller::zoomEvent(1, map->mapView, &window, map->mouseValue);
+                            ImGui::End();
+                            ImGui::SFML::Render(window);
+                            continue;
                         }
+                        currentLevel = FloorLevels[(FloorLabel)(currentEnumFloor + 1)];
+                        currentEnumFloor = (FloorLabel)(currentEnumFloor + 1);
+                        map = FloorMapObjects[currentEnumFloor];
+                        map->copy_node_data_to_node_pointers();
+                        loadMapTexture(*map, currentEnumFloor);
+                        strcpy(startingPointsCString, (std::string("Starting Points: ") + std::string(std::to_string(map->startingPoints.size()))).c_str());
+                        floorChanged = true;
                     }
-                     ImGui::SameLine();
-                    if (ImGui::Button("-"))
-                    {
-                        if (map->mouseValue > 0)
-                        {
-                            fsim::Controller::zoomEvent(-1, map->mapView, &window, map->mouseValue);
-                        }
-                    }
-                }
-                if (ImGui::CollapsingHeader("Starting Points"), ImGuiTreeNodeFlags_DefaultOpen)
-                {
-                    if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
-                    {
-                        ImGui::TableSetupColumn("Starting Points");
-                        ImGui::TableHeadersRow();
+                    ImGui::SameLine();
 
-                        for (size_t row = 0; row < map->startingPoints.size(); row++)
+                    if(ImGui::Button("Down"))
+                    {
+                        if ((FloorLabel)(currentEnumFloor - 1) != FloorLabel::GROUND && 
+                            (FloorLabel)(currentEnumFloor - 1) != FloorLabel::SECOND &&
+                            (FloorLabel)(currentEnumFloor - 1) != FloorLabel::THIRD  &&
+                            (FloorLabel)(currentEnumFloor - 1) != FloorLabel::FOURTH)
                         {
-                            ImGui::TableNextRow();
-                            for (int column = 0; column < 1; column++)
+                            ImGui::End();
+                            ImGui::SFML::Render(window);
+                            continue;
+                        }
+                        currentLevel = FloorLevels[(FloorLabel)(currentEnumFloor - 1)];
+                        currentEnumFloor = (FloorLabel)(currentEnumFloor - 1);
+                        map = FloorMapObjects[currentEnumFloor];
+                        map->copy_node_data_to_node_pointers();
+                        loadMapTexture(*map, currentEnumFloor);
+                        strcpy(startingPointsCString, (std::string("Starting Points: ") + std::string(std::to_string(map->startingPoints.size()))).c_str());
+                        floorChanged = true; 
+                    }
+                    
+                    ImGui::Separator();
+
+                    if (ImGui::BeginTable("PointsTable", 2))
+                    {
+                        ImGui::TableNextColumn(); ImGui::Text(startingPointsCString); 
+                        ImGui::TableNextColumn(); 
+                        std::string labelIgnitionPoint = "Ignition Points: " + std::to_string(map->fireGraphicsList.size());
+                        ImGui::Text(labelIgnitionPoint.c_str());
+                        ImGui::EndTable();
+                    }
+
+                    if (ImGui::Button("Visualize"))
+                    {
+                        if (!callPathfinding)
+                            LogThread.launch();
+                    }
+
+                    ImGui::Checkbox("Safe route", &safeRoute);
+
+                    if (ImGui::CollapsingHeader("View Controls"), ImGuiTreeNodeFlags_DefaultOpen)
+                    {
+                        if (ImGui::BeginTable("split", 2))
+                        {
+                            ImGui::TableNextColumn(); ImGui::Checkbox("WASD Movement", &enableWASD); 
+                            ImGui::TableNextColumn(); 
+
+                            ImGui::RadioButton("Navigate", &screenClickHandle, 0);
+     
+                            ImGui::EndTable();
+                        }
+                        ImGui::Separator();
+
+                        float ratio = ((float)map->mouseValue) / (fsim::Controller::zoomValues.size() - 1.0f);
+                        int percent = ratio * 100.0f;
+
+                        std::string zoomPercentage = "Zoom: " + std::to_string(percent) + " %%";
+                        ImGui::Text(zoomPercentage.c_str()); ImGui::SameLine();
+                        if (ImGui::Button("+"))
+                        {
+                            if (map->mouseValue < fsim::Controller::zoomValues.size() - 1)
                             {
-                                ImGui::TableSetColumnIndex(column);
-                                ImGui::Text(map->startingPoints[row]->buffer); ImGui::SameLine();
-                                if(ImGui::Button(("Modify##" + std::to_string(row)).c_str()))
+                                fsim::Controller::zoomEvent(1, map->mapView, &window, map->mouseValue);
+                            }
+                        }
+                         ImGui::SameLine();
+                        if (ImGui::Button("-"))
+                        {
+                            if (map->mouseValue > 0)
+                            {
+                                fsim::Controller::zoomEvent(-1, map->mapView, &window, map->mouseValue);
+                            }
+                        }
+                    }
+                    if (ImGui::CollapsingHeader("Starting Points"), ImGuiTreeNodeFlags_DefaultOpen)
+                    {
+                        if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+                        {
+                            ImGui::TableSetupColumn("Starting Points");
+                            ImGui::TableHeadersRow();
+
+                            for (size_t row = 0; row < map->startingPoints.size(); row++)
+                            {
+                                ImGui::TableNextRow();
+                                for (int column = 0; column < 1; column++)
                                 {
-                                    startingPointTemp = map->startingPoints[row];
-                                    modalModify = modifyPointState::MODIFY;
-                                } ImGui::SameLine();
+                                    ImGui::TableSetColumnIndex(column);
+                                    ImGui::Text(map->startingPoints[row]->buffer); ImGui::SameLine();
+                                    if(ImGui::Button(("Modify##" + std::to_string(row)).c_str()))
+                                    {
+                                        startingPointTemp = map->startingPoints[row];
+                                        modalModify = modifyPointState::MODIFY;
+                                    } ImGui::SameLine();
+                                    if(ImGui::Button(("Locate##" + std::to_string(row)).c_str()))
+                                    {
+                                        if (map->startingPoints[row]->node != nullptr)
+                                        {
+                                            map->mapView.setCenter(sf::Vector2f(map->startingPoints[row]->node->getWorldPos().x,
+                                            map->startingPoints[row]->node->getWorldPos().y));
+                                            map->mouseValue = 12;
+                                            map->mapView.setSize(sf::Vector2f(1366.0f * fsim::Controller::zoomValues[map->mouseValue], 
+                                            768.0f * fsim::Controller::zoomValues[map->mouseValue]));
+                                            window.setView(map->mapView);
+                                        }
+                                    }
+                                    ImGui::SameLine();
+                                    if (ImGui::Button(("Move##" + std::to_string(row)).c_str()))
+                                    {
+                                        screenClickHandle = 0;
+                                        modifyNodes(*map, [](fsim::Node* node) { 
+                                            // if (node->obstruction == false)
+                                                node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); 
+                                        });
+
+                                        map->initVertexArray();
+                                        sf::Color color(sf::Color(
+                                            map->startingPoints[row]->point_rgba.x * 255.0f,
+                                            map->startingPoints[row]->point_rgba.y * 255.0f,
+                                            map->startingPoints[row]->point_rgba.z * 255.0f,
+                                            map->startingPoints[row]->point_rgba.w * 255.0f)
+                                        );
+                                        map->startingPoints[row]->point.setFillColor(color);
+                                        // std::cout <<  map->startingPoints[row]->point_rgba.x << std::endl;
+                                        startPointMoving = true;
+                                        startingPointTemp = map->startingPoints[row];
+                                        enableWASD = true;
+                                    }
+                                    ImGui::SameLine();
+                                    if(ImGui::Button(("Delete##" + std::to_string(row)).c_str()))
+                                    {
+                                        modifyNodes(*map, [](fsim::Node* node) { node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); });
+                                        map->initVertexArray();
+                                        map->startingPoints[row]->node = nullptr;
+                                        delete map->startingPoints[row];
+                                        map->startingPoints.erase(map->startingPoints.begin() + row);
+                                        startingPointsChanged = true;
+                                        break;
+                                    }
+                                     ImGui::SameLine();
+                                    
+                                    ImGui::ColorEdit4("", (float*)&(map->startingPoints[row]->point_rgba), ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_NoInputs);
+                                }
+                            }
+
+                            ImGui::EndTable();
+                        }
+                        if (ImGui::Button("Add"))
+                        {
+                            modalModify = modifyPointState::CREATE;
+                        }
+
+                    }
+                    if (ImGui::CollapsingHeader("Fire Sources"), ImGuiTreeNodeFlags_DefaultOpen)
+                    {
+                        if (ImGui::BeginTable("CreateFireNodeTables", 2))
+                        {
+                            ImGui::TableNextColumn();
+                            ImGui::RadioButton("Add manually", &screenClickHandle, 1);
+                            ImGui::TableNextColumn(); 
+                            if (ImGui::Button("Auto generate"))
+                            {
+
+                            }
+                            ImGui::EndTable();
+                        }
+
+                        ImGui::PushItemWidth(150.0f);
+                        ImGui::SliderFloat("Heat Flux (kW/m2) ", &heatFluxValue, 0.0f, 300.0f);
+                        ImGui::Separator();
+                        if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+                        {
+                            ImGui::TableSetupColumn("Fire Points Table");
+                            ImGui::TableHeadersRow();
+
+                            for (size_t row = 0; row < map->fireGraphicsList.size(); ++row)
+                            {
+                                ImGui::TableNextRow();
+                                ImGui::TableSetColumnIndex(0);
+                                std::stringstream ssHeatFlux;
+                                ssHeatFlux << std::setprecision(5) << map->fireGraphicsList[row].heatFluxValue << " kW/m2";
+                                ImGui::Text(ssHeatFlux.str().c_str());
+                                ImGui::SameLine();
                                 if(ImGui::Button(("Locate##" + std::to_string(row)).c_str()))
                                 {
-                                    if (map->startingPoints[row]->node != nullptr)
+                                    if (map->fireGraphicsList[row].node != nullptr)
                                     {
-                                        map->mapView.setCenter(sf::Vector2f(map->startingPoints[row]->node->getWorldPos().x,
-                                        map->startingPoints[row]->node->getWorldPos().y));
+                                        map->mapView.setCenter(sf::Vector2f(map->fireGraphicsList[row].node->getWorldPos().x,
+                                        map->fireGraphicsList[row].node->getWorldPos().y));
                                         map->mouseValue = 12;
                                         map->mapView.setSize(sf::Vector2f(1366.0f * fsim::Controller::zoomValues[map->mouseValue], 
                                         768.0f * fsim::Controller::zoomValues[map->mouseValue]));
@@ -906,210 +1020,132 @@ int main()
                                     }
                                 }
                                 ImGui::SameLine();
-                                if (ImGui::Button(("Move##" + std::to_string(row)).c_str()))
+                                if(ImGui::Button(("Modify##" + std::to_string(row)).c_str()))
                                 {
-                                    screenClickHandle = 0;
-                                    modifyNodes(*map, [](fsim::Node* node) { 
-                                        // if (node->obstruction == false)
-                                            node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); 
-                                    });
-
-                                    map->initVertexArray();
-                                    sf::Color color(sf::Color(
-                                        map->startingPoints[row]->point_rgba.x * 255.0f,
-                                        map->startingPoints[row]->point_rgba.y * 255.0f,
-                                        map->startingPoints[row]->point_rgba.z * 255.0f,
-                                        map->startingPoints[row]->point_rgba.w * 255.0f)
-                                    );
-                                    map->startingPoints[row]->point.setFillColor(color);
-                                    // std::cout <<  map->startingPoints[row]->point_rgba.x << std::endl;
-                                    startPointMoving = true;
-                                    startingPointTemp = map->startingPoints[row];
-                                    enableWASD = true;
                                 }
                                 ImGui::SameLine();
                                 if(ImGui::Button(("Delete##" + std::to_string(row)).c_str()))
                                 {
-                                    modifyNodes(*map, [](fsim::Node* node) { node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f)); });
-                                    map->initVertexArray();
-                                    map->startingPoints[row]->node = nullptr;
-                                    delete map->startingPoints[row];
-                                    map->startingPoints.erase(map->startingPoints.begin() + row);
-                                    startingPointsChanged = true;
-                                    break;
-                                }
-                                 ImGui::SameLine();
-                                
-                                ImGui::ColorEdit4("", (float*)&(map->startingPoints[row]->point_rgba), ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_NoInputs);
-                            }
-                        }
-
-                        ImGui::EndTable();
-                    }
-                    if (ImGui::Button("Add"))
-                    {
-                        modalModify = modifyPointState::CREATE;
-                    }
-
-                }
-                if (ImGui::CollapsingHeader("Fire Sources"), ImGuiTreeNodeFlags_DefaultOpen)
-                {
-                    if (ImGui::BeginTable("CreateFireNodeTables", 2))
-                    {
-                        ImGui::TableNextColumn();
-                        ImGui::RadioButton("Add manually", &screenClickHandle, 1);
-                        ImGui::TableNextColumn(); 
-                        if (ImGui::Button("Auto generate"))
-                        {
-
-                        }
-                        ImGui::EndTable();
-                    }
-
-                    ImGui::PushItemWidth(150.0f);
-                    ImGui::SliderFloat("Heat Flux (kW/m2) ", &heatFluxValue, 0.0f, 300.0f);
-                    ImGui::Separator();
-                    if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
-                    {
-                        ImGui::TableSetupColumn("Fire Points Table");
-                        ImGui::TableHeadersRow();
-
-                        for (size_t row = 0; row < map->fireGraphicsList.size(); ++row)
-                        {
-                            ImGui::TableNextRow();
-                            ImGui::TableSetColumnIndex(0);
-                            std::stringstream ssHeatFlux;
-                            ssHeatFlux << std::setprecision(5) << map->fireGraphicsList[row].heatFluxValue << " kW/m2";
-                            ImGui::Text(ssHeatFlux.str().c_str());
-                            ImGui::SameLine();
-                            if(ImGui::Button(("Locate##" + std::to_string(row)).c_str()))
-                            {
-                                if (map->fireGraphicsList[row].node != nullptr)
-                                {
-                                    map->mapView.setCenter(sf::Vector2f(map->fireGraphicsList[row].node->getWorldPos().x,
-                                    map->fireGraphicsList[row].node->getWorldPos().y));
-                                    map->mouseValue = 12;
-                                    map->mapView.setSize(sf::Vector2f(1366.0f * fsim::Controller::zoomValues[map->mouseValue], 
-                                    768.0f * fsim::Controller::zoomValues[map->mouseValue]));
-                                    window.setView(map->mapView);
-                                }
-                            }
-                            ImGui::SameLine();
-                            if(ImGui::Button(("Modify##" + std::to_string(row)).c_str()))
-                            {
-                            }
-                            ImGui::SameLine();
-                            if(ImGui::Button(("Delete##" + std::to_string(row)).c_str()))
-                            {
-                                if (map->fireGraphicsList[row].node != nullptr)
-                                {
-                                    fsim::Node* selectedNode = map->fireGraphicsList[row].node;
-                                    map->fireGraphicsList.erase(map->fireGraphicsList.begin() + row);
-                                    map->nodeObstructionsList.erase(map->nodeObstructionsList.begin() + row);
-                                    for (size_t i = 0; i < map->getTotalRows(); ++i)
+                                    if (map->fireGraphicsList[row].node != nullptr)
                                     {
-                                        for (size_t k = map->minCols; k < map->maxCols; ++k)
+                                        fsim::Node* selectedNode = map->fireGraphicsList[row].node;
+                                        map->fireGraphicsList.erase(map->fireGraphicsList.begin() + row);
+                                        map->nodeObstructionsList.erase(map->nodeObstructionsList.begin() + row);
+                                        for (size_t i = 0; i < map->getTotalRows(); ++i)
                                         {
-                                            if (map->nodes[i][k] != selectedNode)
+                                            for (size_t k = map->minCols; k < map->maxCols; ++k)
                                             {
-                                                float distance = std::sqrt(std::pow((float)selectedNode->col - (float)map->nodes[i][k]->col, (float)2.0f) + std::pow((float)selectedNode->row - (float)map->nodes[i][k]->row, (float)2.0f));
-                                                if (distance * fsim::units::UNIT_DISTANCE <= fsim::units::STANDARD_HEAT_FLUX_RADIUS)
+                                                if (map->nodes[i][k] != selectedNode)
                                                 {
-                                                    // map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
-                                                    map->nodes[i][k]->obstruction = false;
-                                                    
+                                                    float distance = std::sqrt(std::pow((float)selectedNode->col - (float)map->nodes[i][k]->col, (float)2.0f) + std::pow((float)selectedNode->row - (float)map->nodes[i][k]->row, (float)2.0f));
+                                                    if (distance * fsim::units::UNIT_DISTANCE <= fsim::units::STANDARD_HEAT_FLUX_RADIUS)
+                                                    {
+                                                        // map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
+                                                        map->nodes[i][k]->obstruction = false;
+                                                        
+                                                    }
                                                 }
-                                            }
 
+                                            }
                                         }
+                                        map->initVertexArray();
                                     }
-                                    map->initVertexArray();
                                 }
                             }
+
+                            ImGui::EndTable();
                         }
 
-                        ImGui::EndTable();
                     }
-
-                }
-                if (ImGui::CollapsingHeader("Results"), ImGuiTreeNodeFlags_DefaultOpen)
-                {
-                    if (ImGui::BeginTable("someTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+                    if (ImGui::CollapsingHeader("Results"), ImGuiTreeNodeFlags_DefaultOpen)
                     {
-                        ImGui::TableSetupColumn(floorCString);
-                        std::string safeRouteStatus = (safeRoute) ? "Enabled" : "Disabled";
-                        ImGui::TableSetupColumn((std::string("Safe route: ") + safeRouteStatus).c_str());
-                        ImGui::TableHeadersRow();
-                        ImGui::EndTable();
-                    }
-                    if (ImGui::BeginTable("Resultstable1", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
-                    {
-                        ImGui::TableSetupColumn("Point");
-                        ImGui::TableSetupColumn("D");
-                        ImGui::TableSetupColumn("I");
-                        ImGui::TableSetupColumn("Ps");
-                        ImGui::TableSetupColumn("Pd");
-                        ImGui::TableHeadersRow();
-
-                        std::stringstream ss;
-
-                        for (size_t row = 0; row < map->results.size(); ++row)
+                        if (ImGui::BeginTable("someTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
                         {
-                            ImGui::TableNextRow();
-
-                            ImGui::TableSetColumnIndex(0);
-                            ImGui::Text(map->results[row].point_name.c_str());
-
-                            ImGui::TableSetColumnIndex(1);
-                            ss << std::setprecision(4) << map->results[row].distance_traveled << " m";
-                            ImGui::Text(ss.str().c_str());
-                            ss.str("");
-
-                            ImGui::TableSetColumnIndex(2);
-                            ss << std::setprecision(4) << map->results[row].danger_indicator_average;
-                            ImGui::Text(ss.str().c_str());
-                            ss.str("");
-
-                            ImGui::TableSetColumnIndex(3);
-                            ss << std::setprecision(4) << map->results[row].safe_path_proportion;
-                            ImGui::Text(ss.str().c_str());
-                            ss.str("");
-
-                            ImGui::TableSetColumnIndex(4);
-                            ss << std::setprecision(4) << map->results[row].risky_path_proportion;
-                            ImGui::Text(ss.str().c_str());
-                            ss.str("");
-                            
+                            ImGui::TableSetupColumn(floorCString);
+                            std::string safeRouteStatus = (safeRoute) ? "Enabled" : "Disabled";
+                            ImGui::TableSetupColumn((std::string("Safe route: ") + safeRouteStatus).c_str());
+                            ImGui::TableHeadersRow();
+                            ImGui::EndTable();
                         }
+                        if (ImGui::BeginTable("Resultstable1", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+                        {
+                            ImGui::TableSetupColumn("Point");
+                            ImGui::TableSetupColumn("D");
+                            ImGui::TableSetupColumn("I");
+                            ImGui::TableSetupColumn("Ps");
+                            ImGui::TableSetupColumn("Pd");
+                            ImGui::TableHeadersRow();
 
-                        ImGui::EndTable();
+                            std::stringstream ss;
+
+                            for (size_t row = 0; row < map->results.size(); ++row)
+                            {
+                                ImGui::TableNextRow();
+
+                                ImGui::TableSetColumnIndex(0);
+                                ImGui::Text(map->results[row].point_name.c_str());
+
+                                ImGui::TableSetColumnIndex(1);
+                                ss << std::setprecision(4) << map->results[row].distance_traveled << " m";
+                                ImGui::Text(ss.str().c_str());
+                                ss.str("");
+
+                                ImGui::TableSetColumnIndex(2);
+                                ss << std::setprecision(4) << map->results[row].danger_indicator_average;
+                                ImGui::Text(ss.str().c_str());
+                                ss.str("");
+
+                                ImGui::TableSetColumnIndex(3);
+                                ss << std::setprecision(4) << map->results[row].safe_path_proportion;
+                                ImGui::Text(ss.str().c_str());
+                                ss.str("");
+
+                                ImGui::TableSetColumnIndex(4);
+                                ss << std::setprecision(4) << map->results[row].risky_path_proportion;
+                                ImGui::Text(ss.str().c_str());
+                                ss.str("");
+                                
+                            }
+                            ImGui::TableNextRow();
+                            for (int i = 0; i < 4; ++i)
+                            {
+                                ImGui::TableSetColumnIndex(i);
+                                ImGui::Text(" ");
+                            }
+
+                            ImGui::EndTable();
+                        }
                     }
+
+                }
+                
+                if (modalModify == modifyPointState::CREATE)
+                    displayModifyModal(modifyPointState::CREATE);
+
+                else if (modalModify == modifyPointState::MODIFY)
+                {
+                    displayModifyModal(modifyPointState::MODIFY);
                 }
 
+                ImGui::End();
             }
-            
-            if (modalModify == modifyPointState::CREATE)
-                displayModifyModal(modifyPointState::CREATE);
 
-            else if (modalModify == modifyPointState::MODIFY)
+            if (logPanelState)
             {
-                displayModifyModal(modifyPointState::MODIFY);
+                ImGui::SetNextWindowPos(bottomPanelPos, ImGuiCond_Always);
+                ImGui::SetNextWindowSize(bottomPanelSize, ImGuiCond_Always);
+                ImGui::Begin("Simulator logs", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+                if (addNewLogs)
+                {
+                    addNewLogs = false;
+                    log.AddLog(logMsg.c_str());
+                }
+
+                ImGui::End();
+
+                log.Draw("Simulator logs", nullptr);
+
             }
-
-            ImGui::End();
-
-            ImGui::SetNextWindowPos(bottomPanelPos, ImGuiCond_Always);
-            ImGui::SetNextWindowSize(bottomPanelSize, ImGuiCond_Always);
-            ImGui::Begin("Simulator logs", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-            if (addNewLogs)
-            {
-                addNewLogs = false;
-                log.AddLog(logMsg.c_str());
-            }
-
-            ImGui::End();
-
-            log.Draw("Simulator logs", nullptr);
             window.setView(defaultView);
             toolbar.draw(&window);
             if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
@@ -1128,7 +1164,7 @@ int main()
             window.setView(map->mapView);
 
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, menuBarPadding);
-            ShowExampleAppMainMenuBar(&window);
+            ShowAppMainMenuBar(&window);
             ImGui::PopStyleVar();
             ImGui::SFML::Render(window);
 
@@ -1145,6 +1181,8 @@ int main()
                         {
                             sf::Vector2u position = map->clickPosition(worldPos);
                             fsim::Node* selectedNode = map->nodes[position.x][position.y];
+                            if (selectedNode == nullptr)
+                                throw 404;
                             fsim::Node* calculatedSelectedNode = fsim::Algorithms::bfsGetNearestStart(selectedNode, map->nodes, map->getTotalRows(), map->getTotalCols());
                             startingPointTemp->node = calculatedSelectedNode;
 
@@ -1193,7 +1231,7 @@ int main()
                                 sf::Vector2u position = map->clickPosition(worldPos);
                                 fsim::Node* selectedNode = map->nodes[position.x][position.y];
                                 // selectedNode->switchColor(sf::Color(255, 70, 0, 255.0f));
-                                map->generateFireGraphics(selectedNode, &fireIconTexture, heatFluxValue);
+                                // map->generateFireGraphics(selectedNode, &fireIconTexture, heatFluxValue);
                                 std::vector<fsim::Node*> nodeObstructions;
                                 for (size_t i = 0; i < map->getTotalRows(); ++i)
                                 {
@@ -1205,15 +1243,30 @@ int main()
                                             if (distance * fsim::units::UNIT_DISTANCE < fsim::units::STANDARD_HEAT_FLUX_RADIUS)
                                             {
                                                 // map->nodes[i][k]->switchColor(sf::Color(255,115, 0, 90.0f));
-                                                map->nodes[i][k]->obstruction = true;
+                                                // map->nodes[i][k]->obstruction = true;
                                                 nodeObstructions.push_back(map->nodes[i][k]);
                                             }
                                         }
 
                                     }
                                 }
-                                map->nodeObstructionsList.push_back(nodeObstructions);
-                                map->initVertexArray();
+                                auto findExisitingFireIterator = std::find_if(nodeObstructions.begin(), nodeObstructions.end(), [](fsim::Node* node)
+                                {
+                                    return (node->obstruction == true);
+                                });
+                                if (findExisitingFireIterator == nodeObstructions.end())
+                                {
+                                    for (const auto& fireNode : nodeObstructions)
+                                        fireNode->obstruction = true;
+                                    map->nodeObstructionsList.push_back(nodeObstructions);
+                                    map->initVertexArray();
+                                    map->generateFireGraphics(selectedNode, &fireIconTexture, heatFluxValue);
+                                }
+                                else
+                                {
+                                    pushLogMessage("Cannot place fire node near to another fire node.", "Exception");
+                                }
+
                                 mouseDown = true;
                             }
                         } else mouseDown = false;
