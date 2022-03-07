@@ -77,13 +77,13 @@ namespace fsim
             }
         }
 
-        void dragEvent(sf::View& mapView, sf::RenderWindow* window)
+        void dragEvent(sf::View& mapView, sf::RenderWindow* window, const sf::Vector2f& mapPixelCoords)
         {
             if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
             {
                 if (!mouseDown)
                 {
-                    tempMousePosition = window->mapPixelToCoords(sf::Mouse::getPosition(*window));
+                    tempMousePosition = mapPixelCoords;
                     tempViewCenterPos = mapView.getCenter();
                     mouseDown = true;
                 }

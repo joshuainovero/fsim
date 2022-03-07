@@ -30,7 +30,7 @@ namespace fsim
         void keyboardEvent(sf::View& view, sf::RenderWindow* window);
 
         // Event that handles drag navigation
-        void dragEvent(sf::View& mapView, sf::RenderWindow* window);
+        void dragEvent(sf::View& mapView, sf::RenderWindow* window, const sf::Vector2f& mapPixelCoords);
 
     }
 }
