@@ -10,18 +10,144 @@
 #include "Constants.hpp"
 #include "Units.hpp"
 #include "Filehandler.hpp"
+#include "Toolbar.hpp"
 #include <iostream>
 #include <algorithm>
 #include <string>
 #include <math.h>
 #include <iomanip>
 #include <time.h>
+#include <ctime>
+#include <thread>
+#include <Windows.h>
+
+static bool addNewLogs = false;
+static std::string logMsg;
+static void pushLogMessage(const std::string& msg, const std::string& log_type)
+{
+    std::time_t t = std::time(nullptr);
+    std::tm* tPtr = localtime(&t);
+    std::stringstream date_digits;
+    std::stringstream time_digits;
+    date_digits << (tPtr->tm_year) + 1900 <<"-"<< (tPtr->tm_mday)+1 <<"-"<< (tPtr->tm_mon);
+    time_digits << (tPtr->tm_hour)<<":"<< (tPtr->tm_min)<<":"<< (tPtr->tm_sec);
+    std::string text_left = date_digits.str() + " " + time_digits.str() + " +02:00";
+    addNewLogs = true;
+    logMsg = text_left + " [" + log_type + "] " + msg + ".\n";
+}
+struct AppLog
+{
+    ImGuiTextBuffer     Buf;
+    ImGuiTextFilter     Filter;
+    ImVector<int>       LineOffsets; // Index to lines offset. We maintain this with AddLog() calls.
+    bool                AutoScroll;  // Keep scrolling if already at the bottom.
+
+    AppLog()
+    {
+        AutoScroll = true;
+        Clear();
+    }
+
+    void    Clear()
+    {
+        Buf.clear();
+        LineOffsets.clear();
+        LineOffsets.push_back(0);
+    }
+
+    void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
+    {
+        int old_size = Buf.size();
+        va_list args;
+        va_start(args, fmt);
+        Buf.appendfv(fmt, args);
+        va_end(args);
+        for (int new_size = Buf.size(); old_size < new_size; old_size++)
+            if (Buf[old_size] == '\n')
+                LineOffsets.push_back(old_size + 1);
+    }
+
+    void    Draw(const char* title, bool* p_open = NULL)
+    {
+        if (!ImGui::Begin(title, p_open))
+        {
+            ImGui::End();
+            return;
+        }
+
+        // Options menu
+        if (ImGui::BeginPopup("Options"))
+        {
+            ImGui::Checkbox("Auto-scroll", &AutoScroll);
+            ImGui::EndPopup();
+        }
+
+        // Main window
+        if (ImGui::Button("Options"))
+            ImGui::OpenPopup("Options");
+        ImGui::SameLine();
+        bool clear = ImGui::Button("Clear");
+        ImGui::SameLine();
+        bool copy = ImGui::Button("Copy");
+        ImGui::SameLine();
+        Filter.Draw("Filter", -100.0f);
+
+        ImGui::Separator();
+        ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+        if (clear)
+            Clear();
+        if (copy)
+            ImGui::LogToClipboard();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+        const char* buf = Buf.begin();
+        const char* buf_end = Buf.end();
+        if (Filter.IsActive())
+        {
+            for (int line_no = 0; line_no < LineOffsets.Size; line_no++)
+            {
+                const char* line_start = buf + LineOffsets[line_no];
+                const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+                if (Filter.PassFilter(line_start, line_end))
+                    ImGui::TextUnformatted(line_start, line_end);
+            }
+        }
+        else
+        {
+            ImGuiListClipper clipper;
+            clipper.Begin(LineOffsets.Size);
+            while (clipper.Step())
+            {
+                for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+                {
+                    const char* line_start = buf + LineOffsets[line_no];
+                    const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+                    // ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+                    ImGui::TextUnformatted(line_start, line_end);
+                    // ImGui::PopStyleColor();
+                }
+            }
+            clipper.End();
+        }
+        ImGui::PopStyleVar();
+
+        if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+            ImGui::SetScrollHereY(1.0f);
+
+        ImGui::EndChild();
+        ImGui::End();
+    }
+};
 
 static std::string currentFileName = "no file loaded";
 static bool fileDialogOpen = false;
 std::string tempPath;
 std::string dialogType;
 bool manipulateFile = false;
+
+sf::Texture targetIconTexture;
+
 
 // States of the create/modify point modal
 
@@ -77,6 +203,7 @@ static bool safeRoute = true;
 static bool startPointMoving = false;
 static bool mouseOnImGui = false;
 static bool mouseDown = false;
+static bool mouseDown2 = false;
 static int  screenClickHandle = 0;
 static float heatFluxValue = 200;
 
@@ -139,11 +266,11 @@ static void displayModifyModal(const modifyPointState& state)
             {
                 delete startingPointTemp;
                 startingPointTemp = nullptr;
-                std::cout << "Cancelled Starting Node" << std::endl;
+                // std::cout << "Cancelled Starting Node" << std::endl;
             }
             else if (modalModify == modifyPointState::MODIFY)
             {
-                std::cout << "Cancelled Modify Node" << std::endl;
+                // std::cout << "Cancelled Modify Node" << std::endl;
                 startingPointTemp = nullptr;
 
             }
@@ -156,8 +283,8 @@ static void displayModifyModal(const modifyPointState& state)
         {
             if (startingPointTemp == nullptr)
             {
-                startingPointTemp = new fsim::StartingPoints();
-                std::cout << "Created" << std::endl;
+                startingPointTemp = new fsim::StartingPoints(&targetIconTexture);
+                // std::cout << "Created" << std::endl;
             }
         }
 
@@ -213,7 +340,7 @@ static void displayModifyModal(const modifyPointState& state)
                 map->startingPoints.push_back(startingPointTemp);
 
             modalModify = modifyPointState::NONE;
-            std::cout << "Saved" << std::endl;
+            // std::cout << "Saved" << std::endl;
             startingPointTemp->point_rgba = color;
 
             startingPointTemp = nullptr;
@@ -249,29 +376,232 @@ static void modifyNodes(fsim::Floormap& map, std::function<void(fsim::Node*)> op
     }
 }
 
+static void ShowExampleMenuFile(sf::RenderWindow* window)
+{
+    ImGui::MenuItem("(File menu)", NULL, false, false);
+    if (ImGui::MenuItem("New")) {}
+    if (ImGui::MenuItem("Open", "Ctrl+O")) {}
+    if (ImGui::BeginMenu("Open Recent"))
+    {
+        ImGui::MenuItem("fish_hat.c");
+        ImGui::MenuItem("fish_hat.inl");
+        ImGui::MenuItem("fish_hat.h");
+        if (ImGui::BeginMenu("More.."))
+        {
+            ImGui::MenuItem("Hello");
+            ImGui::MenuItem("Sailor");
+            if (ImGui::BeginMenu("Recurse.."))
+            {
+                ShowExampleMenuFile(window);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::MenuItem("Save", "Ctrl+S")) {}
+    if (ImGui::MenuItem("Save As..")) {}
+
+    ImGui::Separator();
+    if (ImGui::BeginMenu("Options"))
+    {
+        static bool enabled = true;
+        ImGui::MenuItem("Enabled", "", &enabled);
+        ImGui::BeginChild("child", ImVec2(0, 60), true);
+        for (int i = 0; i < 10; i++)
+            ImGui::Text("Scrolling Text %d", i);
+        ImGui::EndChild();
+        static float f = 0.5f;
+        static int n = 0;
+        ImGui::SliderFloat("Value", &f, 0.0f, 1.0f);
+        ImGui::InputFloat("Input", &f, 0.1f);
+        ImGui::Combo("Combo", &n, "Yes\0No\0Maybe\0\0");
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Colors"))
+    {
+        float sz = ImGui::GetTextLineHeight();
+        for (int i = 0; i < ImGuiCol_COUNT; i++)
+        {
+            const char* name = ImGui::GetStyleColorName((ImGuiCol)i);
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + sz, p.y + sz), ImGui::GetColorU32((ImGuiCol)i));
+            ImGui::Dummy(ImVec2(sz, sz));
+            ImGui::SameLine();
+            ImGui::MenuItem(name);
+        }
+        ImGui::EndMenu();
+    }
+
+    // Here we demonstrate appending again to the "Options" menu (which we already created above)
+    // Of course in this demo it is a little bit silly that this function calls BeginMenu("Options") twice.
+    // In a real code-base using it would make senses to use this feature from very different code locations.
+    if (ImGui::BeginMenu("Options")) // <-- Append!
+    {
+        static bool b = true;
+        ImGui::Checkbox("SomeOption", &b);
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Disabled", false)) // Disabled
+    {
+        IM_ASSERT(0);
+    }
+    if (ImGui::MenuItem("Checked", NULL, true)) {}
+    if (ImGui::MenuItem("Quit", "Alt+F4")) { window->close(); }
+}
+
+static void ShowExampleAppMainMenuBar(sf::RenderWindow* window)
+{
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("File"))
+        {
+            ShowExampleMenuFile(window);
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Edit"))
+        {
+            if (ImGui::MenuItem("Undo", "CTRL+Z")) {}
+            if (ImGui::MenuItem("Redo", "CTRL+Y", false, false)) {}  // Disabled item
+            ImGui::Separator();
+            if (ImGui::MenuItem("Cut", "CTRL+X")) {}
+            if (ImGui::MenuItem("Copy", "CTRL+C")) {}
+            if (ImGui::MenuItem("Paste", "CTRL+V")) {}
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Preferences"))
+        {
+            if (ImGui::MenuItem("Theme", "White")) {}
+
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+    }
+}
+
+
+static void startPathFinding()
+{
+    pushLogMessage("Simulating paths...", "Information");
+    modifyNodes(*map, [](fsim::Node* node){ 
+        node->updateNeighbors(map->nodes, map->minCols, map->maxCols); 
+        node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
+    });
+
+    map->results.clear();
+    // std::cout << "1" << std::endl;
+    fsim::Algorithms::calculateRisk(map->nodes, map->fireGraphicsList, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols));
+    // std::cout << "2" << std::endl;
+    for (auto startNode : map->startingPoints)
+    {
+        if (startNode->node != nullptr)
+        {
+            exitsStored.clear();
+            auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false, safeRoute);
+            bool exit_node_within_previous_node = false;
+            for (auto exitNode : map->exitNodes)
+            {
+                if (previous_nodes.find(exitNode) == previous_nodes.end())
+                {
+                    continue;
+                }
+                else 
+                    exit_node_within_previous_node = true;
+                    
+                uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false).node_count;
+                exitsStored.push_back(std::make_pair(exitNode, nodeCount));
+            }
+            
+            fsim::Results results;
+            fsim::Node* exitNode;
+            if (!exit_node_within_previous_node)
+            {
+                exitsStored.clear();
+                auto previous_nodes = fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false, false);
+
+                for (auto exitNode : map->exitNodes)
+                {
+                    if (previous_nodes.find(exitNode) == previous_nodes.end())
+                        continue;
+                    
+                    uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false).node_count;
+                    exitsStored.push_back(std::make_pair(exitNode,  nodeCount));
+                }
+                auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
+                                    return left.second < right.second;});
+                results = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true));
+                exitNode = minExitNode.first;
+            }
+            else 
+            {
+                auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
+                                    return left.second < right.second;});
+                results = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true));
+                exitNode = minExitNode.first;
+            }
+
+            // std::cout << "Distance traveled: " << results.distance_traveled << std::endl;
+            // std::cout << "Danger Indicator: " << results.danger_indicator_average << std::endl;
+            // std::cout << "Safe path proportion: " << results.safe_path_proportion << std::endl;
+            // std::cout << "Risky path proprtion: " << results.risky_path_proportion << std::endl << std::endl;
+            const float& unit_s = fsim::units::UNIT_SIZE_IN_PIXELS;
+            const float t_half_size = unit_s/2.0f;
+            startNode->targetSprite.setPosition(sf::Vector2f(exitNode->col * unit_s + t_half_size, exitNode->row * unit_s + t_half_size));
+            map->results.push_back(results);
+            map->results[map->results.size() - 1].point_name = startNode->buffer;
+        }
+        std::string nodeName = (std::strlen(startNode->buffer) == 0) ? "Node [no name]" : startNode->buffer;
+        pushLogMessage("Successfully attempted to find the safest exit for " + nodeName, "Information");
+
+    }
+
+    // std::cout << "3" << std::endl;
+    map->initVertexArray();
+}
+
+static bool callPathfinding = false;
+
+static void logListener(sf::RenderWindow* window)
+{
+    while (window->isOpen())
+    {
+        if (callPathfinding)
+        {
+            // std::cout << "Called pathfinding" << std::endl;
+            startPathFinding();
+            pushLogMessage("Displaying all paths for floor " + std::to_string((int)currentEnumFloor), "Information");
+            callPathfinding = false;
+        }
+    }
+}
+
 int main()
 {
-
     srand(time(NULL));
-    // bool authentication_success;
-    // { authentication_success = fsim::app_authentication(); }
+    AppLog log;
+    bool authentication_success;
+    { authentication_success = fsim::app_authentication(); }
 
-    // if (!authentication_success)
-    //     return 0;
+    if (!authentication_success)
+        return 0;
 
     auto videoMode = sf::VideoMode::getDesktopMode();
     videoMode.height += 1;
     // sf::ContextSettings settings;
     // settings.antialiasingLevel = 4;
+    
     sf::RenderWindow window(videoMode, "Window", sf::Style::None);
+    std::thread LogThread(logListener, &window);
     bool imGuiInit = ImGui::SFML::Init(window);
 
-    if (imGuiInit)
-        std::cout << "ImGui Success!" << std::endl;
     ImVec4 defaultWindowColor = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
     defaultWindowColor.w = 1.0f;
+    // std::cout << defaultWindowColor.x << " " << defaultWindowColor.y << " " << defaultWindowColor.z << " " << defaultWindowColor.w << std::endl;
     ImGui::GetStyle().Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, defaultWindowColor);
+    ImGui::GetIO().FontGlobalScale = 1.0;
 
     sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height), videoMode.height);
 
@@ -310,8 +640,35 @@ int main()
     fireIconTexture.loadFromFile("resource/FireIcon.png");
     fireIconTexture.setSmooth(true);
 
+    targetIconTexture.loadFromFile("resource/target.png");
+    targetIconTexture.setSmooth(true);
+
+    fsim::Toolbar toolbar(
+        "left",
+        sf::Color(defaultWindowColor.x * 255.0f, defaultWindowColor.y * 255.0f, defaultWindowColor.z * 255.0f, defaultWindowColor.w * 255.0f)
+    );
+    toolbar.AddTool("resource/cursor_move.png");
+    toolbar.AddTool("resource/marker_icon.png");
+    toolbar.AddTool("resource/fire_tool_icon.png");
+    toolbar.AddTool("resource/eraser_icon.png");
+    toolbar.AddTool("resource/zoom_in_icon.png");
+    toolbar.AddTool("resource/zoom_out_icon.png");
+
     sf::Clock deltaClock;
-    
+    bool *p_open;
+    sf::View defaultView;
+    defaultView.setSize(sf::Vector2f(1366.0f, 768.0f));
+    defaultView.setCenter(sf::Vector2f(1366.0f / 2.0f, 768.0f / 2.0f));
+
+    ImVec2 rightPanelPos(ImVec2((1068.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height, (18.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height));
+    ImVec2 rightPanelSize(ImVec2((298.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height, (768/768) * (float)sf::VideoMode::getDesktopMode().height));
+
+    ImVec2 bottomPanelPos(ImVec2((42.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height, (620.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height));
+    ImVec2 bottomPanelSize(ImVec2((1026.0f/768.0f) * sf::VideoMode::getDesktopMode().height, (149.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height));
+
+    ImVec2 menuBarPadding(ImVec2((5.0f/768.0f) * sf::VideoMode::getDesktopMode().height, (5.0f/768.0f) * sf::VideoMode::getDesktopMode().height));
+    pushLogMessage("Initialized app...", "Information");
+
     while (window.isOpen())
     {
         window.setView(map->mapView);
@@ -336,8 +693,12 @@ int main()
             {
                 if (windowInFocus)
                 {
-                    if (modalModify == modifyPointState::NONE)
-                        fsim::Controller::zoomEvent(event.mouseWheel.delta, map->mapView, &window, map->mouseValue);
+                    if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow))
+                    {
+                        if (modalModify == modifyPointState::NONE)
+                            fsim::Controller::zoomEvent(event.mouseWheel.delta, map->mapView, &window, map->mouseValue);
+                    }
+
                 }
 
             }
@@ -347,17 +708,21 @@ int main()
             window.clear(sf::Color::White);
 
             map->drawMap(&window);
-
             window.draw(*map->nodePositions);
 
             for (auto startNode : map->startingPoints)
             {
                 if (startNode->node != nullptr)
+                {
                     window.draw(startNode->point);
+                    window.draw(startNode->targetSprite);
+                }
             }
             
-            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-            ImGui::Begin("MU Fire Escape Simulator", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+            ImGui::SetNextWindowPos(rightPanelPos, ImGuiCond_Always);
+            ImGui::SetNextWindowSize(rightPanelSize, ImGuiCond_Always);
+            ImGui::Begin("MU Fire Escape Simulator", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+            // ImGui::BeginChild("bitchr", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollba);
             if (ImGui::CollapsingHeader("What is this?"))
             {
 
@@ -367,7 +732,7 @@ int main()
             {
             }
 
-            if (ImGui::CollapsingHeader("Simulator"))
+            if (ImGui::CollapsingHeader("Simulator"), ImGuiTreeNodeFlags_DefaultOpen)
             {
                 if (fileDialogOpen)
                 {
@@ -393,7 +758,13 @@ int main()
                     strcpy(floorCString, (std::string("Floor Level: ") + std::string(std::to_string(currentLevel.first)) + " " + std::string(currentLevel.second)).c_str());
                     floorChanged = false;
                 }
-                ImGui::Text("File data: no file loaded");
+                //ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+                if (tempPath.empty())
+                    ImGui::Text("File data: no file loaded");
+                else
+                    ImGui::Text(std::string("File data: " + tempPath).c_str());
+
+                //ImGui::PopStyleColor();
                 if (ImGui::Button("Load file"))
                 {
                     ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".sim", ".");
@@ -464,79 +835,12 @@ int main()
 
                 if (ImGui::Button("Visualize"))
                 {
-                    modifyNodes(*map, [](fsim::Node* node){ 
-                        node->updateNeighbors(map->nodes, map->minCols, map->maxCols); 
-                        node->switchColor(sf::Color(0.0f, 0.0f, 0.0f, 0.0f));
-                    });
-
-                    map->results.clear();
-                    std::cout << "1" << std::endl;
-                    fsim::Algorithms::calculateRisk(map->nodes, map->fireGraphicsList, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols));
-                    std::cout << "2" << std::endl;
-                    for (auto startNode : map->startingPoints)
-                    {
-                        if (startNode->node != nullptr)
-                        {
-                            exitsStored.clear();
-                            auto previous_nodes =  fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false, safeRoute);
-                            bool exit_node_within_previous_node = false;
-                            for (auto exitNode : map->exitNodes)
-                            {
-                                if (previous_nodes.find(exitNode) == previous_nodes.end())
-                                {
-                                    continue;
-                                }
-                                else 
-                                    exit_node_within_previous_node = true;
-                                    
-                                uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false).node_count;
-                                exitsStored.push_back(std::make_pair(exitNode, nodeCount));
-                            }
-                            
-                            fsim::Results results;
-
-                            if (!exit_node_within_previous_node)
-                            {
-                                exitsStored.clear();
-                                auto previous_nodes = fsim::Algorithms::dijkstra(startNode->node, nullptr, map->nodes, map->getTotalRows(), std::make_pair(map->minCols, map->maxCols), false, false);
-
-                                for (auto exitNode : map->exitNodes)
-                                {
-                                    if (previous_nodes.find(exitNode) == previous_nodes.end())
-                                        continue;
-                                    
-                                    uint32_t nodeCount = fsim::Algorithms::reconstruct_path(exitNode, startNode->node, previous_nodes, false).node_count;
-                                    exitsStored.push_back(std::make_pair(exitNode,  nodeCount));
-                                }
-                                auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
-                                                    return left.second < right.second;});
-                                results = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true));
-                            }
-                            else 
-                            {
-                                auto minExitNode = *std::min_element(exitsStored.begin(), exitsStored.end(), [](auto &left, auto &right) {
-                                                    return left.second < right.second;});
-                                results = (fsim::Algorithms::reconstruct_path(minExitNode.first, startNode->node, previous_nodes, true));
-                            }
-
-                            std::cout << "Distance traveled: " << results.distance_traveled << std::endl;
-                            std::cout << "Danger Indicator: " << results.danger_indicator_average << std::endl;
-                            std::cout << "Safe path proportion: " << results.safe_path_proportion << std::endl;
-                            std::cout << "Risky path proprtion: " << results.risky_path_proportion << std::endl << std::endl;
-
-                            map->results.push_back(results);
-                            map->results[map->results.size() - 1].point_name = startNode->buffer;
-                        }
-
-                    }
-
-                    std::cout << "3" << std::endl;
-                    map->initVertexArray();
+                    callPathfinding= true;
                 }
 
                 ImGui::Checkbox("Safe route", &safeRoute);
 
-                if (ImGui::CollapsingHeader("View Controls"))
+                if (ImGui::CollapsingHeader("View Controls"), ImGuiTreeNodeFlags_DefaultOpen)
                 {
                     if (ImGui::BeginTable("split", 2))
                     {
@@ -570,7 +874,7 @@ int main()
                         }
                     }
                 }
-                if (ImGui::CollapsingHeader("Starting Points"))
+                if (ImGui::CollapsingHeader("Starting Points"), ImGuiTreeNodeFlags_DefaultOpen)
                 {
                     if (ImGui::BeginTable("table1", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
                     {
@@ -618,7 +922,7 @@ int main()
                                         map->startingPoints[row]->point_rgba.w * 255.0f)
                                     );
                                     map->startingPoints[row]->point.setFillColor(color);
-                                    std::cout <<  map->startingPoints[row]->point_rgba.x << std::endl;
+                                    // std::cout <<  map->startingPoints[row]->point_rgba.x << std::endl;
                                     startPointMoving = true;
                                     startingPointTemp = map->startingPoints[row];
                                     enableWASD = true;
@@ -648,7 +952,7 @@ int main()
                     }
 
                 }
-                if (ImGui::CollapsingHeader("Fire Sources"))
+                if (ImGui::CollapsingHeader("Fire Sources"), ImGuiTreeNodeFlags_DefaultOpen)
                 {
                     if (ImGui::BeginTable("CreateFireNodeTables", 2))
                     {
@@ -728,7 +1032,7 @@ int main()
                     }
 
                 }
-                if (ImGui::CollapsingHeader("Results"))
+                if (ImGui::CollapsingHeader("Results"), ImGuiTreeNodeFlags_DefaultOpen)
                 {
                     if (ImGui::BeginTable("someTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
                     {
@@ -783,10 +1087,6 @@ int main()
                 }
 
             }
-
-            // if (ImGui::CollapsingHeader("Results"))
-            // {
-            // }
             
             if (modalModify == modifyPointState::CREATE)
                 displayModifyModal(modifyPointState::CREATE);
@@ -798,6 +1098,38 @@ int main()
 
             ImGui::End();
 
+            ImGui::SetNextWindowPos(bottomPanelPos, ImGuiCond_Always);
+            ImGui::SetNextWindowSize(bottomPanelSize, ImGuiCond_Always);
+            ImGui::Begin("Simulator logs", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+            if (addNewLogs)
+            {
+                addNewLogs = false;
+                log.AddLog(logMsg.c_str());
+            }
+
+            ImGui::End();
+
+            log.Draw("Simulator logs", nullptr);
+            window.setView(defaultView);
+            toolbar.draw(&window);
+            if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
+            {   
+                if (!mouseDown2)
+                {
+                    sf::Vector2f worldPos_ = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+                    toolbar.triggerEvents(worldPos_);
+                    // std::cout << "World pos: " << worldPos.x << " " << worldPos.y << std::endl;
+                    mouseDown2 = true;
+                }
+
+            }
+            else
+                mouseDown2 = false;
+            window.setView(map->mapView);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, menuBarPadding);
+            ShowExampleAppMainMenuBar(&window);
+            ImGui::PopStyleVar();
             ImGui::SFML::Render(window);
 
             if (startPointMoving)
@@ -824,13 +1156,14 @@ int main()
                         }
                         catch (int excep__)
                         {
-                            std::cout << "Exceeded" << std::endl;
+                            pushLogMessage("Cannot place starting point here.", "Exception");
                         }
 
                     } 
                 }
                 else mouseDown = false;
             }
+
 
             window.display();
 
@@ -848,7 +1181,7 @@ int main()
 
 
                     if (screenClickHandle == 0 && windowInFocus)
-                        fsim::Controller::dragEvent(map->mapView, &window);
+                        fsim::Controller::dragEvent(map->mapView, &window, worldPos);
 
                     else if (screenClickHandle == 1)
                     {
@@ -925,5 +1258,6 @@ int main()
     }
 
     ImGui::SFML::Shutdown();
+    // LogThread.join();
     return 0;
 }
