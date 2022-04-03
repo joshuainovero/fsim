@@ -1,5 +1,8 @@
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 #include "../vendor/imgui/imgui.h"
 #include "../vendor/imgui/imgui-SFML.h"
+#include "../vendor/imgui/imgui_impl_opengl3.h"
 #include "../vendor/imgui-dialog/lib/ImGuiFileDialog.h"
 #include <SFML/Graphics.hpp>
 #include <mailio/message.hpp>
@@ -25,6 +28,8 @@
 static bool logPanelState = true;
 static bool rightPanelState = true;
 static bool toolBarState = true;
+
+float pixelSize;
 
 // simulator log utilities
 static bool addNewLogs = false;
@@ -227,8 +232,199 @@ void*                           GImGuiDemoMarkerCallbackUserData = NULL;
 
 namespace fsim 
 { 
-    extern std::vector<char> getImageBuffer(const std::string& filename); 
-    extern bool app_authentication();
+    static int key = 0;
+    static bool awaitingOTP = false;
+    // extern std::vector<char> getImageBuffer(const std::string& filename);
+    static std::vector<char> getImageBuffer(const std::string& filename)
+    {
+        std::vector<char> buffer;
+        std::ifstream tex_file(filename, std::ios::binary);
+
+        char scan;
+        while (!tex_file.eof())
+        {
+            tex_file >> std::noskipws >> scan;
+            int temp = scan - key;
+            buffer.push_back(char(temp));
+        }
+        tex_file.close();
+
+        return buffer;
+    } 
+    static bool app_authentication()
+    {
+        // connect to server
+        mailio::smtps conn("", 587);
+        // modify username/password to use real credentials
+        conn.authenticate("", "", mailio::smtps::auth_method_t::START_TLS);
+        sf::VideoMode mode = sf::VideoMode((500.0f/768.0f) * sf::VideoMode::getDesktopMode().height, (410.0f/768.0f) * sf::VideoMode::getDesktopMode().height);
+        sf::RenderWindow authWindow(mode, "Window", sf::Style::None);
+        authWindow.setFramerateLimit(60);
+
+        if (glewInit() != GLEW_OK)
+            std::cout << "Error glew" << std::endl;
+        // bool imGuiInitWindow = ImGui::SFML::Init(authWindow);
+        ImGui::SFML::Init(authWindow, static_cast<sf::Vector2f>(authWindow.getSize()));
+        ImGuiIO& io = ImGui::GetIO();
+        pixelSize = (18.0f/768.0f) * sf::VideoMode::getDesktopMode().height;
+        std::cout << "authent1" << std::endl;
+        io.Fonts->AddFontDefault();
+        ImGui_ImplOpenGL3_Init();
+        
+        ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        std::cout << "authent2" << std::endl;
+        sf::Clock deltaClockAuth;
+        ImGui::GetStyle().WindowMenuButtonPosition = ImGuiDir_None;
+
+        float emailTextBoxWidth = 280.0f;
+        float otpTextBoxWidth = 170.0f;
+        char emailBuffer[180] = "";
+        char otpBuffer[7] = "";
+
+        const std::string availabilityLabel1 = "This application is exclusively available to";
+        const std::string availabilityLabel2 = "Mapúa University students and employees.";
+        const std::string putEmailLabel = "Enter a valid Mapúa email address and";
+        const std::string putEmailLabel2 = "wait for an OTP to gain access to the app.";
+        const std::string buttonGenerateOTPLabel = "Generate OTP";
+
+        const std::string sentOTPLabel = std::string("An OTP was sent to");
+        const std::string checkEmailLabel = "Check your email/spam/junk folder";
+        const std::string enterOTPLabel = "Enter your OTP: ";
+        const std::string buttonVerifyLabel = "Verify";
+        const std::string buttonResendLabel = "Resend OTP";
+        const std::string buttonBackLabel = "Go back";
+
+        std::string OTP;
+        std::cout << "Authent3" << std::endl;
+        while (authWindow.isOpen())
+        {
+            sf::Event event;
+            while (authWindow.pollEvent(event))
+            {
+                ImGui::SFML::ProcessEvent(event);
+                if (event.type == sf::Event::Closed)
+                    authWindow.close();
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+            {
+                authWindow.close();
+                ImGui::SFML::Shutdown();
+                return false;
+            }
+            ImGui::SFML::Update(authWindow, deltaClockAuth.restart());
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui::NewFrame();
+            authWindow.clear();
+            ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+            //500,411
+            ImGui::SetNextWindowSize(ImVec2(mode.width, mode.height), ImGuiCond_Always);
+            ImGui::Begin("Login");
+            auto imguiWindowSize= ImGui::GetWindowSize();
+            
+            if (!awaitingOTP)
+            {
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(availabilityLabel1.c_str()).x) * 0.5f);
+                ImGui::SetCursorPosY((imguiWindowSize.y * 0.5f) - 100.0f);
+                ImGui::Text(availabilityLabel1.c_str());
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(availabilityLabel2.c_str()).x) * 0.5f);
+                ImGui::Text(availabilityLabel2.c_str());
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(putEmailLabel.c_str()).x) * 0.5f);
+                ImGui::SetCursorPosY((imguiWindowSize.y * 0.5f) - 50.0f);
+                ImGui::Text(putEmailLabel.c_str());
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(putEmailLabel2.c_str()).x) * 0.5f);
+                ImGui::Text(putEmailLabel2.c_str());
+
+                ImGui::PushItemWidth(emailTextBoxWidth);
+                ImGui::SetCursorPosX((imguiWindowSize.x - emailTextBoxWidth) * 0.5f);
+                ImGui::SetCursorPosY(imguiWindowSize.y * 0.5f);
+                ImGui::InputText("##label", emailBuffer, IM_ARRAYSIZE(emailBuffer));
+
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(buttonGenerateOTPLabel.c_str()).x) * 0.5f);
+                ImGui::SetCursorPosY((imguiWindowSize.y * 0.5f) + 40.0f);
+                if (ImGui::Button(buttonGenerateOTPLabel.c_str()))
+                {
+                    if (std::string(emailBuffer).find("@mymail.mapua.edu.ph") != std::string::npos ||
+                        std::string(emailBuffer).find("@mapua.edu.ph") != std::string::npos)
+                    {
+                        for (int i = 0; i < 6; ++i)
+                            OTP.push_back((rand() % 10) + '0');
+                        mailio::message msg;
+                        msg.from(mailio::mail_address("Group 4 - IS215", "-"));// set the correct sender name and address
+                        msg.add_recipient(mailio::mail_address("Group 4 - IS215", emailBuffer));// set the correct recipent name and address
+                        msg.subject("OTP Verification");
+                        msg.content(std::string("Your OTP - ") + OTP);
+
+                        conn.submit(msg);
+                        awaitingOTP = true;
+                    }
+
+                }
+            }
+            else
+            {
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(sentOTPLabel.c_str()).x) * 0.5f);
+                ImGui::SetCursorPosY((imguiWindowSize.y * 0.5f) - 80.0f);
+                ImGui::Text(sentOTPLabel.c_str());
+                const std::string toEmail = std::string("- ") + emailBuffer;
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(toEmail.c_str()).x) * 0.5f);
+                ImGui::Text(toEmail.c_str());
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(checkEmailLabel.c_str()).x) * 0.5f);
+                ImGui::Text(checkEmailLabel.c_str());
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(enterOTPLabel.c_str()).x) * 0.5f);
+                ImGui::SetCursorPosY((imguiWindowSize.y * 0.5f) - 18.0f);
+                ImGui::Text(enterOTPLabel.c_str());
+                
+                ImGui::PushItemWidth(otpTextBoxWidth);
+                ImGui::SetCursorPosX((imguiWindowSize.x - otpTextBoxWidth) * 0.5f);
+                ImGui::SetCursorPosY(imguiWindowSize.y * 0.5f);
+                ImGui::InputText("##label", otpBuffer, IM_ARRAYSIZE(otpBuffer));
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(buttonVerifyLabel.c_str()).x) * 0.5f);
+                ImGui::SetCursorPosY((imguiWindowSize.y * 0.5f) + 35.0f);
+                if (ImGui::Button(buttonVerifyLabel.c_str()))
+                {
+                    if (OTP == otpBuffer)
+                    {
+                        authWindow.close();
+                        ImGui::SFML::Shutdown();
+                        return true;
+                    }
+                }
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(buttonResendLabel.c_str()).x) * 0.5f);
+                if (ImGui::Button(buttonResendLabel.c_str()))
+                {
+                    OTP.clear();
+                    if (std::string(emailBuffer).find("@mymail.mapua.edu.ph") != std::string::npos ||
+                        std::string(emailBuffer).find("@mapua.edu.ph") != std::string::npos)
+                    {
+                        for (int i = 0; i < 6; ++i)
+                            OTP.push_back((rand() % 10) + '0');
+                        mailio::message msg;
+                        msg.from(mailio::mail_address("Group 4 - IS215", "-"));// set the correct sender name and address
+                        msg.add_recipient(mailio::mail_address("Group 4 - IS215", emailBuffer));// set the correct recipent name and address
+                        msg.subject("OTP Verification");
+                        msg.content(std::string("Your OTP - ") + OTP);
+
+                        conn.submit(msg);
+                    }
+                    
+                }
+                ImGui::SetCursorPosX((imguiWindowSize.x- ImGui::CalcTextSize(buttonBackLabel.c_str()).x) * 0.5f);
+                if (ImGui::Button(buttonBackLabel.c_str()))
+                {
+                    OTP.clear();
+                    awaitingOTP = false;
+                }
+            }
+
+            ImGui::End();
+
+            // ImGui::SFML::Render(authWindow);
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            authWindow.display();
+        }
+        ImGui::SFML::Shutdown();
+    }
 }
 
 // Help marker
@@ -597,27 +793,74 @@ static void logListener()
     callPathfinding = false;
 }
 
+struct rectImageCenter
+{
+    rectImageCenter(const std::string& imagePath)
+    {
+        ImVec4 color = ImGui::GetStyle().Colors[ImGuiCol_MenuBarBg];
+        rect.setSize(sf::Vector2f(137.96/3.0f, 23.5f));
+        rect.setFillColor(sf::Color(color.x * 255.0f, color.y * 255.0f, color.z * 255.0f, color.w * 255.0f));
+        texture.loadFromFile(imagePath);
+        texture.setSmooth(true);
+        sprite.setTexture(texture);
+        sprite.setOrigin(sf::Vector2f(sprite.getTexture()->getSize().x/2.0f, sprite.getTexture()->getSize().y/2.0f));
+        sprite.setScale(sf::Vector2f(0.135f, 0.135f));
+
+    }   
+
+    void draw(sf::RenderWindow* window)
+    {
+        window->draw(rect);
+        window->draw(sprite);
+    }
+
+    void setPosition(const sf::Vector2f& pos)
+    {
+        rect.setPosition(sf::Vector2f(pos.x, pos.y));
+        sprite.setPosition(sf::Vector2f(pos.x + (rect.getSize().x/2.0f), pos.y + (rect.getSize().y/2.0f) ));
+    }
+
+    sf::RectangleShape rect;
+    sf::Texture texture;
+    sf::Sprite sprite;
+};
+
+sf::Vector2f screenRef(1366.0f, 768.0f);
+
+sf::VideoMode videoMode;
 
 int main()
 {
     srand(time(NULL));
     AppLog log;
-    bool authentication_success;
-    { authentication_success = fsim::app_authentication(); }
+    std::cout <<"run1" << std::endl;
+    // bool authentication_success;
+    // { authentication_success = fsim::app_authentication(); }
 
-    if (!authentication_success)
-        return 0;
-
-    auto videoMode = sf::VideoMode::getDesktopMode();
+    // if (!authentication_success)
+    //     return 0;
+std::cout <<"run2" << std::endl;
+    // videoMode = sf::VideoMode(956.2f, 537.6f);
+    videoMode = sf::VideoMode::getDesktopMode();
     videoMode.height += 1;
     sf::ContextSettings settings;
     settings.antialiasingLevel = 1;
     
     sf::RenderWindow window(videoMode, "Window", sf::Style::None, settings);
     window.setFramerateLimit(60);
-    sf::Thread LogThread(&logListener);
-    bool imGuiInit = ImGui::SFML::Init(window);
 
+    if (glewInit() != GLEW_OK)
+        std::cout << "Error glew" << std::endl;
+
+    sf::Thread LogThread(&logListener);
+    // bool imGuiInit = ImGui::SFML::Init(window);
+    ImGui::SFML::Init(window, static_cast<sf::Vector2f>(window.getSize()));
+    ImGuiIO& io = ImGui::GetIO();
+    pixelSize = (16.0/screenRef.y) * (float)window.getSize().y;
+    io.Fonts->AddFontDefault();
+    ImGui_ImplOpenGL3_Init();
+    // ImGui_ImplXXXX_Init();
+    
     ImVec4 defaultWindowColor = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
     defaultWindowColor.w = 1.0f;
     // std::cout << defaultWindowColor.x << " " << defaultWindowColor.y << " " << defaultWindowColor.z << " " << defaultWindowColor.w << std::endl;
@@ -625,12 +868,12 @@ int main()
     ImGui::PushStyleColor(ImGuiCol_WindowBg, defaultWindowColor);
     ImGui::GetIO().FontGlobalScale = 1.0;
 
-    sf::Vector2f ImGuiWindowSize((float)((float)300.0f/768.0f) * (videoMode.height), videoMode.height);
+    sf::Vector2f ImGuiWindowSize((float)((float)300.0f/screenRef.y) * (videoMode.height), videoMode.height);
 
     const float boardWidth = 1366.0f;
     const uint32_t totalCols = 400;
     const float tileSize = boardWidth / (float)totalCols;
-    uint32_t totalRows = std::ceil((float)768.0f / tileSize);
+    uint32_t totalRows = std::ceil((float)screenRef.y / tileSize);
     std::vector<fsim::Node*>* nodes = new std::vector<fsim::Node*>[totalRows];
     for (size_t row_i = 0; row_i < totalRows; ++row_i)
     {
@@ -676,19 +919,30 @@ int main()
     toolbar.AddTool("resource/zoom_in_icon.png");
     toolbar.AddTool("resource/zoom_out_icon.png");
 
+    sf::RectangleShape titleBarRight;
+    titleBarRight.setSize(sf::Vector2f(137.96f, 25.5f));
+    titleBarRight.setFillColor(sf::Color::Green);
+    titleBarRight.setPosition(sf::Vector2f(window.getSize().x - titleBarRight.getSize().x, 0.0f));
+    rectImageCenter exitItem("resource/exit_icon.png");
+    exitItem.setPosition(sf::Vector2f(window.getSize().x - (titleBarRight.getSize().x - (exitItem.rect.getSize().x * 2.0f)  ), 1.0f));
+    rectImageCenter restoreItem("resource/restore_icon.png");
+    restoreItem.setPosition(sf::Vector2f(window.getSize().x - (titleBarRight.getSize().x - (restoreItem.rect.getSize().x * 1.0f)  ), 1.0f));
+    rectImageCenter minimizeItem("resource/minimize_icon.png");
+    minimizeItem.setPosition(sf::Vector2f(window.getSize().x - (titleBarRight.getSize().x - (minimizeItem.rect.getSize().x * 0.0f)  ), 1.0f));
+
     sf::Clock deltaClock;
     bool *p_open;
     sf::View defaultView;
-    defaultView.setSize(sf::Vector2f(1366.0f, 768.0f));
-    defaultView.setCenter(sf::Vector2f(1366.0f / 2.0f, 768.0f / 2.0f));
+    defaultView.setSize(sf::Vector2f(1366.0f, screenRef.y));
+    defaultView.setCenter(sf::Vector2f(1366.0f / 2.0f, screenRef.y / 2.0f));
 
-    ImVec2 rightPanelPos(ImVec2((1068.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height, (18.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height));
-    ImVec2 rightPanelSize(ImVec2((298.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height, (768/768) * (float)sf::VideoMode::getDesktopMode().height));
+    ImVec2 rightPanelPos(ImVec2((1068.0f/screenRef.y) * (float)window.getSize().y, (25.0f/screenRef.y) * (float)window.getSize().y));
+    ImVec2 rightPanelSize(ImVec2((298.0f/screenRef.y) * (float)window.getSize().y, (screenRef.y/screenRef.y) * (float)window.getSize().y));
 
-    ImVec2 bottomPanelPos(ImVec2((42.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height, (620.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height));
-    ImVec2 bottomPanelSize(ImVec2((1026.0f/768.0f) * sf::VideoMode::getDesktopMode().height, (149.0f/768.0f) * (float)sf::VideoMode::getDesktopMode().height));
+    ImVec2 bottomPanelPos(ImVec2((42.0f/screenRef.y) * (float)window.getSize().y, (620.0f/screenRef.y) * (float)window.getSize().y));
+    ImVec2 bottomPanelSize(ImVec2((1026.0f/screenRef.y) * (float)window.getSize().y, (149.0f/screenRef.y) * (float)window.getSize().y));
 
-    ImVec2 menuBarPadding(ImVec2((5.0f/768.0f) * sf::VideoMode::getDesktopMode().height, (5.0f/768.0f) * sf::VideoMode::getDesktopMode().height));
+    ImVec2 menuBarPadding(ImVec2((5.0f/screenRef.y) * (float)window.getSize().y, (5.0f/screenRef.y) * (float)window.getSize().y));
     pushLogMessage("Initialized app...", "Information");
 
     while (window.isOpen())
@@ -726,9 +980,11 @@ int main()
             }
         }
             ImGui::SFML::Update(window, deltaClock.restart());
-
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui::NewFrame();
             window.clear(sf::Color::White);
-
+            // glClear(GL_COLOR);
+            // glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
             map->drawMap(&window);
             window.draw(*map->nodePositions);
 
@@ -813,7 +1069,8 @@ int main()
                             (FloorLabel)(currentEnumFloor + 1) != FloorLabel::FOURTH)
                         {
                             ImGui::End();
-                            ImGui::SFML::Render(window);
+                            // ImGui::SFML::Render(window);
+                            ImGui::Render();
                             continue;
                         }
                         currentLevel = FloorLevels[(FloorLabel)(currentEnumFloor + 1)];
@@ -834,7 +1091,8 @@ int main()
                             (FloorLabel)(currentEnumFloor - 1) != FloorLabel::FOURTH)
                         {
                             ImGui::End();
-                            ImGui::SFML::Render(window);
+                            // ImGui::SFML::Render(window);
+                            ImGui::Render();
                             continue;
                         }
                         currentLevel = FloorLevels[(FloorLabel)(currentEnumFloor - 1)];
@@ -926,7 +1184,7 @@ int main()
                                             map->startingPoints[row]->node->getWorldPos().y));
                                             map->mouseValue = 12;
                                             map->mapView.setSize(sf::Vector2f(1366.0f * fsim::Controller::zoomValues[map->mouseValue], 
-                                            768.0f * fsim::Controller::zoomValues[map->mouseValue]));
+                                            screenRef.y * fsim::Controller::zoomValues[map->mouseValue]));
                                             window.setView(map->mapView);
                                         }
                                     }
@@ -1015,7 +1273,7 @@ int main()
                                         map->fireGraphicsList[row].node->getWorldPos().y));
                                         map->mouseValue = 12;
                                         map->mapView.setSize(sf::Vector2f(1366.0f * fsim::Controller::zoomValues[map->mouseValue], 
-                                        768.0f * fsim::Controller::zoomValues[map->mouseValue]));
+                                        screenRef.y * fsim::Controller::zoomValues[map->mouseValue]));
                                         window.setView(map->mapView);
                                     }
                                 }
@@ -1166,7 +1424,8 @@ int main()
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, menuBarPadding);
             ShowAppMainMenuBar(&window);
             ImGui::PopStyleVar();
-            ImGui::SFML::Render(window);
+            // ImGui::SFML::Render(window);
+            ImGui::Render();
 
             if (startPointMoving)
             {
@@ -1201,7 +1460,11 @@ int main()
                 }
                 else mouseDown = false;
             }
-
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            // window.draw(titleBarRight);
+            // exitItem.draw(&window);
+            // restoreItem.draw(&window);
+            // minimizeItem.draw(&window);
 
             window.display();
 
@@ -1281,9 +1544,8 @@ int main()
                 }
             }
 
-            // if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
-                // std::cout << "Test: " << map->results[0].point_name.c_str() << std::endl;
-
+            if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
+                std::cout << worldPos.x << " " << worldPos.y << std::endl;
             // if (sf::Mouse::isButtonPressed(sf::Mouse::Left))
             // {
             //     for (size_t i = 0; i < totalRows; ++i)

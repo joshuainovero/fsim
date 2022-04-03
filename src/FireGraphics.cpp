@@ -14,6 +14,8 @@ namespace fsim
             sprite.setScale(0.1f, 0.1f);
             area.setRadius(fsim::units::STANDARD_HEAT_FLUX_RADIUS_PIXELS);
             area.setFillColor(sf::Color(255,115, 0, 90.0f));
+            area.setOutlineThickness(0.7f);
+            area.setOutlineColor(sf::Color::Black);
             area.setOrigin(sf::Vector2f(area.getRadius(), area.getRadius()));
             const float& unit_s = fsim::units::UNIT_SIZE_IN_PIXELS;
             const float t_half_size = unit_s/2.0f;

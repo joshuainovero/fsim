@@ -2,6 +2,9 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 
+extern sf::VideoMode videoMode;
+extern sf::Vector2f screenRef;
+
 namespace fsim
 {
     namespace Controller
@@ -11,7 +14,7 @@ namespace fsim
 
         extern bool mouseDown; // Determines if mouse is on click
         
-        extern const sf::Vector2i windowMode; // Constant window mode of the app
+        // extern const sf::Vector2i windowMode; // Constant window mode of the app
 
         extern sf::Vector2f tempViewCenterPos; // Stores the previous center view of the map
         extern sf::Vector2f tempMousePosition; // Stores the previous mouse position

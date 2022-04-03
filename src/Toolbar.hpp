@@ -24,7 +24,7 @@ namespace fsim
     private:
         sf::RectangleShape bar;
         sf::RectangleShape toolSelectedBar;
-        inline static const sf::Vector2f s_pos = sf::Vector2f(6.0f, 18.0f);
+        inline static const sf::Vector2f s_pos = sf::Vector2f(6.0f, 25.0f);
         inline static const float toolGap = 10.0f;
         float toolStartPos;
         size_t counter = 0;

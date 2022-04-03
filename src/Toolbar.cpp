@@ -9,7 +9,7 @@ namespace fsim
         if (position == "left")
         {
             bar.setSize(sf::Vector2f(42.0f, 756.0f));
-            bar.setPosition(sf::Vector2f(0.0f, 18.0f));
+            bar.setPosition(sf::Vector2f(0.0f, 25.0f));
             bar.setFillColor(color);
         }
         toolStartPos = s_pos.y + toolGap;

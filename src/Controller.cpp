@@ -11,7 +11,7 @@ namespace fsim
         bool mouseDown = false;
 
 
-        const sf::Vector2i windowMode(sf::VideoMode::getDesktopMode().width, sf::VideoMode::getDesktopMode().height);
+        // const sf::Vector2i windowMode(sf::VideoMode::getDesktopMode().width, sf::VideoMode::getDesktopMode().height);
         
         sf::Vector2f tempViewCenterPos;
 
@@ -24,17 +24,17 @@ namespace fsim
 
         void autoAdjustView(sf::View& mapView, sf::RenderWindow* window)
         {
-            if (window->mapPixelToCoords(windowMode).x - mapView.getSize().x < 0)
-                mapView.move(std::abs(window->mapPixelToCoords(windowMode).x - mapView.getSize().x), 0);
+            if (window->mapPixelToCoords((sf::Vector2i)window->getSize()).x - mapView.getSize().x < 0)
+                mapView.move(std::abs(window->mapPixelToCoords((sf::Vector2i)window->getSize()).x - mapView.getSize().x), 0);
             
-            if (window->mapPixelToCoords(windowMode).x > 1366)
-                mapView.move(-(window->mapPixelToCoords(windowMode).x - 1366), 0);
+            if (window->mapPixelToCoords((sf::Vector2i)window->getSize()).x > screenRef.x)
+                mapView.move(-(window->mapPixelToCoords((sf::Vector2i)window->getSize()).x - screenRef.x), 0);
 
-            if (window->mapPixelToCoords(windowMode).y - mapView.getSize().y < 0)
-                mapView.move(0, std::abs(window->mapPixelToCoords(windowMode).y - mapView.getSize().y));
+            if (window->mapPixelToCoords((sf::Vector2i)window->getSize()).y - mapView.getSize().y < 0)
+                mapView.move(0, std::abs(window->mapPixelToCoords((sf::Vector2i)window->getSize()).y - mapView.getSize().y));
 
-            if (window->mapPixelToCoords(windowMode).y > 768)
-                mapView.move(0, -(window->mapPixelToCoords(windowMode).y - 768));
+            if (window->mapPixelToCoords((sf::Vector2i)window->getSize()).y > screenRef.y)
+                mapView.move(0, -(window->mapPixelToCoords((sf::Vector2i)window->getSize()).y - screenRef.y));
         }
 
         void zoomEvent(const int& mouseWheelDelta, sf::View& mapView, sf::RenderWindow* window, uint32_t& mouseValue)
@@ -44,7 +44,7 @@ namespace fsim
             else if (mouseWheelDelta < 0 && mouseValue > 0)
                 mouseValue -= 1;
 
-            sf::Vector2f mapSize(1366.0f * zoomValues[mouseValue], 768.0f * zoomValues[mouseValue]);
+            sf::Vector2f mapSize(screenRef.x * zoomValues[mouseValue], screenRef.y * zoomValues[mouseValue]);
 
             mapView.setSize(sf::Vector2f(mapSize.x, mapSize.y));
             window->setView(mapView);
@@ -55,24 +55,24 @@ namespace fsim
         void keyboardEvent(sf::View& view, sf::RenderWindow* window)
         {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)){
-                if (window->mapPixelToCoords(windowMode).x - view.getSize().x > 0)
+                if (window->mapPixelToCoords((sf::Vector2i)window->getSize()).x - view.getSize().x > 0)
                     view.move(sf::Vector2f(-0.5f, 0.0f));
             }
 
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-                if (window->mapPixelToCoords(windowMode).x < 1366)
+                if (window->mapPixelToCoords((sf::Vector2i)window->getSize()).x < 1366)
                     view.move(sf::Vector2f(0.5f, 0.0f));
             }
 
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-                if (window->mapPixelToCoords(windowMode).y - view.getSize().y > 0)
+                if (window->mapPixelToCoords((sf::Vector2i)window->getSize()).y - view.getSize().y > 0)
                     view.move(sf::Vector2f(0.0f, -0.5f));
             }
 
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-                if (window->mapPixelToCoords(windowMode).y < 768)
+                if (window->mapPixelToCoords((sf::Vector2i)window->getSize()).y < 768)
                     view.move(sf::Vector2f(0.0f, 0.5f));
             }
         }
